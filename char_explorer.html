@@ -1,0 +1,4399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Defense-in-depth: block external connections (exfiltration) and any non-CDN script.
+       The XML is untrusted; sanitization (DOMPurify) is the primary control, this is backup. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Folio · PF2e Character Viewer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231a1a2e'/%3E%3Ctext x='50' y='72' font-size='62' text-anchor='middle' fill='%23c9b8ff'%3E%E2%97%86%3C/text%3E%3C/svg%3E">
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* ── upload panel ── */
+    #upload-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+    #upload-panel h1 { font-size: 1.8rem; color: #c9b8ff; text-align: center; }
+    #upload-panel p  { color: #888; text-align: center; max-width: 480px; }
+
+    #drop-zone {
+      border: 2px dashed #555;
+      border-radius: 12px;
+      padding: 3rem 4rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      width: 100%;
+      max-width: 480px;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: #c9b8ff;
+      background: rgba(201,184,255,0.05);
+    }
+    #drop-zone span { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; }
+    #drop-zone p { color: #aaa; margin: 0; }
+    #file-input { display: none; }
+
+    .btn {
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary  { background: #7c5cbf; color: #fff; }
+    .btn-secondary { background: #333; color: #ccc; border: 1px solid #555; }
+
+    /* ── version bar ── */
+    #version-bar {
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      font-family: monospace;
+      display: none;
+    }
+    #version-bar.ok      { background: #1a3a1a; color: #6fcf6f; border-bottom: 1px solid #2a4a2a; }
+    #version-bar.warning { background: #3a2a00; color: #f0c040; border-bottom: 1px solid #5a4a00; }
+
+    /* ── output panel ── */
+    #output-panel { display: none; flex-direction: column; min-height: 100vh; }
+
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 1rem;
+      background: #12122a;
+      border-bottom: 1px solid #333;
+      flex-wrap: wrap;
+    }
+    #toolbar .filename { color: #c9b8ff; font-weight: 600; margin-right: auto; }
+
+    #content-area {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    /* rendered view */
+    #rendered {
+      padding: 2rem;
+      max-width: 960px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* raw markdown view */
+    #raw-view {
+      display: none;
+      padding: 1.5rem;
+      background: #111;
+      overflow: auto;
+    }
+    #raw-view pre {
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: #c8d3f5;
+      white-space: pre;
+    }
+
+    /* ── Markdown rendered styles ── */
+    #rendered h1 { font-size: 1.9rem; color: #c9b8ff; margin: 1.5rem 0 0.3rem; }
+    #rendered h2 { font-size: 1.3rem; color: #a8d8ff; margin: 1.8rem 0 0.5rem; border-bottom: 1px solid #333; padding-bottom: 0.25rem; }
+    #rendered h3 { font-size: 1.1rem; color: #9de0ad; margin: 1.2rem 0 0.4rem; }
+    #rendered p  { margin: 0.5rem 0; line-height: 1.6; }
+    #rendered hr { border: none; border-top: 1px solid #333; margin: 1.5rem 0; }
+    #rendered ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+    #rendered li { margin: 0.2rem 0; }
+    #rendered strong { color: #f0e0ff; }
+    #rendered em { color: #aaa; }
+    #rendered code { background: #2a2a40; padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.85em; color: #f0c080; font-family: monospace; }
+    #rendered .over-cap { color: #f55; font-weight: bold; }
+
+    /* ── collapsible sections ── */
+    #rendered details.sec { margin: 0 0 0.4rem; }
+    #rendered details.sec > summary {
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    #rendered details.sec > summary::-webkit-details-marker { display: none; }
+    #rendered details.sec > summary::before {
+      content: '▸';
+      font-size: 0.7em;
+      opacity: 0.65;
+      transition: transform 0.12s;
+      flex: 0 0 auto;
+    }
+    #rendered details.sec[open] > summary::before { transform: rotate(90deg); }
+    /* h2-level summary mirrors the old h2 heading */
+    #rendered details.sec-h2 > summary {
+      font-size: 1.3rem; color: #a8d8ff; margin: 1.8rem 0 0.5rem;
+      border-bottom: 1px solid #333; padding-bottom: 0.25rem;
+    }
+    #rendered details.sec-h2 > summary:hover { color: #c9e6ff; }
+    /* h3-level summary mirrors the old h3 heading */
+    #rendered details.sec-h3 > summary {
+      font-size: 1.1rem; color: #9de0ad; margin: 1.2rem 0 0.4rem;
+    }
+    #rendered details.sec-h3 > summary:hover { color: #c2f0cf; }
+    #rendered details.sec-h3 { margin-left: 0.3rem; }
+
+    /* ── tabbed sections ── */
+    #rendered .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      position: sticky;
+      top: 0;
+      background: #1a1a2e;
+      padding: 0.6rem 0 0;
+      margin: 0 0 0.8rem;
+      z-index: 50;
+      border-bottom: 1px solid #333;
+    }
+    #rendered .tab-btn {
+      padding: 0.45rem 1rem;
+      border: 1px solid transparent;
+      border-bottom: none;
+      border-radius: 7px 7px 0 0;
+      background: #20203c;
+      color: #b9b9d4;
+      cursor: pointer;
+      font-size: 0.92rem;
+      font-weight: 500;
+      transition: background 0.12s, color 0.12s;
+    }
+    #rendered .tab-btn:hover { background: #2c2c52; color: #fff; }
+    #rendered .tab-btn.active {
+      background: #7c5cbf;
+      color: #fff;
+      border-color: #7c5cbf;
+    }
+    #rendered .tab-panel { animation: tabfade 0.15s ease; }
+    @keyframes tabfade { from { opacity: 0.4; } to { opacity: 1; } }
+    /* first section in a panel shouldn't add big top margin under the tab bar */
+    #rendered .tab-panel > details.sec-h2:first-child > summary { margin-top: 0.3rem; }
+
+    #rendered table {
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin: 0.5rem 0 1rem;
+      width: auto;
+      max-width: 100%;
+    }
+    #rendered th {
+      background: #2a2a40;
+      color: #c9b8ff;
+      padding: 0.35rem 0.75rem;
+      text-align: left;
+      border: 1px solid #444;
+    }
+    #rendered td {
+      padding: 0.3rem 0.75rem;
+      border: 1px solid #333;
+      vertical-align: top;
+    }
+    #rendered tr:nth-child(even) td { background: #1c1c30; }
+
+    #rendered th {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    #rendered th:hover { background: #3a3a58; }
+    #rendered th::after { content: ' ⇅'; opacity: 0.3; font-size: 0.75em; }
+    #rendered th.sort-asc::after  { content: ' ↑'; opacity: 1; }
+    #rendered th.sort-desc::after { content: ' ↓'; opacity: 1; }
+
+    /* ── glossary hover links ── */
+    .gloss {
+      color: #9ad0ff;
+      text-decoration: none;
+      border-bottom: 1px dotted #6a8db5;
+      cursor: help;
+    }
+    .gloss:hover { color: #c9e6ff; border-bottom-style: solid; }
+
+    #gloss-popup {
+      position: fixed;
+      display: none;
+      z-index: 1000;
+      max-width: 440px;
+      max-height: 60vh;
+      overflow-y: auto;
+      background: #14142b;
+      border: 1px solid #4a4a7a;
+      border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+      padding: 0.85rem 1rem;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      color: #e0e0e0;
+    }
+    #gloss-popup .gp-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+    #gloss-popup .gp-name { font-size: 1.05rem; font-weight: 700; color: #c9b8ff; }
+    #gloss-popup .gp-kind { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #9de0ad; }
+    #gloss-popup .gp-meta { font-size: 0.78rem; color: #cbd2e8; margin-bottom: 0.5rem; }
+    #gloss-popup .gp-meta span { display: inline-block; margin-right: 1rem; white-space: nowrap; }
+    #gloss-popup .gp-meta b { color: #a8d8ff; }
+    #gloss-popup .gp-body p { margin: 0.4rem 0; }
+    #gloss-popup .gp-body h4 { color: #a8d8ff; font-size: 0.9rem; margin: 0.7rem 0 0.2rem; }
+    #gloss-popup .gp-body ul { padding-left: 1.3rem; margin: 0.3rem 0; }
+    #gloss-popup .gp-body blockquote { border-left: 3px solid #555; margin: 0.4rem 0; padding-left: 0.7rem; color: #bbb; }
+    #gloss-popup .gref { color: #c9b8ff; }
+    #gloss-popup .gp-auto {
+      margin-top: 0.7rem; padding-top: 0.5rem;
+      border-top: 1px solid #333; font-size: 0.78rem; color: #aaa;
+    }
+    #gloss-popup .gp-auto code { background: #2a2a40; color: #f0c080; padding: 0.1em 0.35em; border-radius: 3px; word-break: break-word; }
+    #gloss-popup .gp-auto-list { list-style: none; padding: 0; margin: 0.25rem 0 0; }
+    #gloss-popup .gp-auto-list li { padding: 0.1rem 0; color: #ddd; }
+    #gloss-popup .gp-auto-list b { color: #9de0ad; }
+    #gloss-popup .gp-hint { margin-top: 0.6rem; font-size: 0.72rem; color: #777; font-style: italic; }
+    .gp-spell-auto {
+      margin-top: 0.7rem; padding-top: 0.5rem;
+      border-top: 1px solid #333; font-size: 0.82rem; color: #bbb;
+    }
+    .gp-spell-auto > div { margin: 0.25rem 0; }
+    .gp-spell-auto b { color: #9de0ad; }
+    .gp-spell-auto em { color: #888; font-style: normal; }
+    .gp-spell-auto ul { list-style: none; padding: 0; margin: 0.2rem 0 0; }
+    .gp-spell-auto li { padding: 0.06rem 0; color: #ddd; }
+    .gp-edit-row { margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid #333; }
+    .gp-edit-btn {
+      background: none; border: 1px solid #4a4a6a; color: #a8d8ff;
+      border-radius: 5px; padding: 0.22rem 0.65rem; cursor: pointer;
+      font-size: 0.76rem; transition: background 0.12s, border-color 0.12s;
+    }
+    .gp-edit-btn:hover { background: #2a2a50; border-color: #7c5cbf; color: #c9e6ff; }
+
+    /* ── Character header band ── */
+    #char-header {
+      background: linear-gradient(135deg, #16163a 0%, #0f0f22 100%);
+      border-bottom: 1px solid #2a2a44;
+      padding: 0.65rem 1.5rem;
+      display: none;
+      align-items: center;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+    }
+    #char-header .ch-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #c9b8ff;
+      letter-spacing: 0.02em;
+      margin-right: 0.4rem;
+    }
+    #char-header .ch-stats {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+    .ch-stat {
+      background: #1e1e3c;
+      border: 1px solid #3a3a5a;
+      border-radius: 6px;
+      padding: 0.15rem 0.65rem;
+      font-size: 0.81rem;
+      color: #bbc;
+      white-space: nowrap;
+    }
+    .ch-stat b {
+      color: #7a9ab8;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 0.25em;
+    }
+    .ch-stat.hp { border-color: #7a3a3a; }
+    .ch-stat.ac { border-color: #3a6a7a; }
+    .ch-stat.save { border-color: #3a5a3a; }
+
+    /* ── Gloss modal (full entry in-page) ── */
+    #gloss-modal {
+      background: #1a1a38;
+      color: #e0e0e0;
+      border: 1px solid #4a4a7a;
+      border-radius: 14px;
+      padding: 1.8rem 2.2rem;
+      max-width: 700px;
+      width: calc(100vw - 2rem);
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 70px rgba(0,0,0,0.85);
+    }
+    #gloss-modal::backdrop { background: rgba(0,0,0,0.72); backdrop-filter: blur(2px); }
+    #gloss-modal .gp-head { margin-bottom: 0.6rem; }
+    #gloss-modal .gp-name { font-size: 1.55rem; }
+    #gloss-modal .gp-kind { font-size: 0.78rem; }
+    #gloss-modal .gp-meta { font-size: 0.9rem; margin: 0.9rem 0; background: #12122a; border: 1px solid #2a2a44; border-radius: 8px; padding: 0.6rem 0.9rem; }
+    #gloss-modal .gp-meta span { display: inline-block; margin: 0.15rem 1.2rem 0.15rem 0; }
+    #gloss-modal .gp-body { font-size: 0.96rem; line-height: 1.7; }
+    #gloss-modal .gp-body h4 { color: #a8d8ff; font-size: 1rem; margin: 1rem 0 0.3rem; }
+    #gloss-modal .gp-body p { margin: 0.5rem 0; }
+    #gloss-modal .gp-auto { margin-top: 1.2rem; padding-top: 0.9rem; border-top: 1px solid #333; font-size: 0.85rem; color: #aaa; }
+    #gloss-modal .gp-auto-list { list-style: none; padding: 0; margin: 0.4rem 0 0; }
+    #gloss-modal .gp-auto-list li { padding: 0.15rem 0; color: #ddd; }
+    #gloss-modal .gp-auto-list b { color: #9de0ad; }
+    #gloss-modal-btns {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 1.3rem;
+      padding-top: 0.9rem;
+      border-top: 1px solid #2a2a44;
+    }
+    #gloss-modal-edit-area { margin-right: auto; }
+
+    /* ── Spell sub-tabs (within Spells section) ── */
+    .spell-sub-tabs {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      margin: 0.4rem 0 1rem;
+    }
+    .spell-sub-btn {
+      padding: 0.25rem 0.8rem;
+      border: 1px solid #3a3a5a;
+      border-radius: 20px;
+      background: #20203c;
+      color: #999;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .spell-sub-btn:hover { background: #2c2c50; color: #ddd; border-color: #5a5a8a; }
+    .spell-sub-btn.active { background: #5c3c9f; border-color: #7c5cbf; color: #fff; }
+
+    /* ── Spell rank label and table ── */
+    .sp-rank-hdr {
+      font-size: 0.71rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #5a7a9a;
+      padding: 0.6rem 0 0.25rem;
+      margin: 0;
+    }
+    #rendered table.sp-tbl { margin: 0 0 0.5rem; }
+    #rendered table.sp-tbl td:first-child { color: #9ad0ff; font-weight: 500; }
+    #rendered table.sp-tbl td { padding: 0.22rem 0.6rem; }
+    .sp-badge {
+      display: inline-block;
+      background: #2a2a50;
+      border: 1px solid #4a4a7a;
+      border-radius: 10px;
+      font-size: 0.66rem;
+      padding: 0 0.35em;
+      color: #9090c0;
+      margin-left: 0.3em;
+      vertical-align: middle;
+    }
+    .sp-badge.sig { border-color: #c9b8ff55; color: #c9b8ff; }
+
+    /* ── Search bars ── */
+    #sg-wrap { display: flex; align-items: center; }
+    #search-global {
+      background: #1a1a38; color: #e0e0e0;
+      border: 1px solid #3a3a5a; border-radius: 20px;
+      padding: 0.28rem 0.9rem 0.28rem 2rem; font-size: 0.82rem;
+      outline: none; width: 14rem; transition: border-color 0.15s, width 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 0.55rem center;
+    }
+    #search-global:focus { border-color: #7a5cbf; width: 18rem; }
+    #search-global::placeholder { color: #555; }
+    .tab-search-bar {
+      display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+      padding: 0.55rem 0.75rem 0.55rem;
+      background: #13132a; border-bottom: 1px solid #2a2a44;
+      border-radius: 8px 8px 0 0; margin-bottom: 0.6rem;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .tsb-text {
+      background: #1e1e3c; color: #e0e0e0;
+      border: 1px solid #3a3a5a; border-radius: 16px;
+      padding: 0.22rem 0.75rem; font-size: 0.8rem; outline: none;
+      width: 10rem; transition: border-color 0.15s, width 0.18s;
+    }
+    .tsb-text:focus { border-color: #7a5cbf; width: 13rem; }
+    .tsb-text::placeholder { color: #555; }
+    .tsb-select {
+      background: #1e1e3c; color: #ccc;
+      border: 1px solid #3a3a5a; border-radius: 16px;
+      padding: 0.22rem 0.65rem; font-size: 0.78rem; outline: none; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .tsb-select:focus { border-color: #7a5cbf; }
+    .tsb-clear { margin-left: auto; font-size: 0.76rem; padding: 0.2rem 0.7rem; border-radius: 14px; }
+    .search-no-results {
+      color: #666; font-size: 0.82rem; font-style: italic;
+      padding: 0.5rem 0.5rem; display: none;
+    }
+
+    /* ── Automation edit dialog ── */
+    #auto-edit-dialog {
+      background: #1a1a38; color: #e0e0e0;
+      border: 1px solid #555; border-radius: 12px;
+      padding: 1.4rem 1.6rem; max-width: 560px; width: calc(100vw - 2rem);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+    }
+    #auto-edit-dialog::backdrop { background: rgba(0,0,0,0.62); }
+    #auto-edit-dialog h3 { color: #c9b8ff; font-size: 1.05rem; margin: 0 0 1rem; }
+    .aed-label { font-size: 0.74rem; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem; }
+    #auto-edit-textarea {
+      width: 100%; background: #12122a; color: #f0c080;
+      border: 1px solid #555; border-radius: 6px;
+      padding: 0.5rem 0.7rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.83rem; line-height: 1.5; resize: vertical; min-height: 72px;
+      margin: 0.25rem 0 0.9rem;
+    }
+    #auto-edit-textarea:focus { outline: none; border-color: #7c5cbf; }
+    #auto-edit-preview {
+      background: #12122a; border-radius: 6px; padding: 0.5rem 0.7rem;
+      font-size: 0.82rem; min-height: 2rem; margin: 0.25rem 0 0.9rem;
+    }
+    #auto-edit-preview b { color: #9de0ad; }
+    #auto-edit-preview ul { list-style: none; padding: 0; margin: 0; }
+    #auto-edit-preview li { padding: 0.1rem 0; color: #ddd; }
+    #auto-edit-preview em { color: #666; }
+    #auto-edit-btns { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.4rem; }
+
+    /* ── Entry builder (inside dialog) ── */
+    #aed-builder { margin-bottom: 0.9rem; }
+    #aed-builder > summary {
+      cursor: pointer; user-select: none; list-style: none;
+      color: #9090b8; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em;
+      display: flex; align-items: center; gap: 0.35rem;
+    }
+    #aed-builder > summary::-webkit-details-marker { display: none; }
+    #aed-builder > summary::before { content: '▸'; font-size: 0.7em; }
+    #aed-builder[open] > summary::before { content: '▾'; }
+    #aed-builder-body {
+      background: #0f0f22; border: 1px solid #333; border-radius: 8px;
+      padding: 0.7rem 0.85rem; margin-top: 0.35rem;
+      display: grid; gap: 0.4rem;
+    }
+    .ab-row { display: flex; align-items: center; gap: 0.55rem; min-height: 1.8rem; }
+    .ab-row label { font-size: 0.78rem; color: #8898bb; min-width: 5.5rem; flex: 0 0 auto; }
+    .ab-row select, .ab-row input[type=number], .ab-row input[type=text] {
+      flex: 1; background: #1a1a30; color: #e0e0e0;
+      border: 1px solid #44446a; border-radius: 4px;
+      padding: 0.2rem 0.45rem; font-size: 0.82rem;
+    }
+    .ab-row input[type=number] { max-width: 80px; flex: 0 0 auto; }
+    #ab-generated {
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.8rem; color: #f0c080; word-break: break-all;
+      background: #1a1220; border-radius: 4px; padding: 0.3rem 0.6rem; min-height: 1.7rem;
+    }
+    #ab-add { align-self: start; white-space: nowrap; font-size: 0.82rem; }
+
+    /* ── Folio branding ── */
+    #upload-panel .wordmark {
+      font-size: 2.6rem; font-weight: 800; letter-spacing: 0.04em; color: #c9b8ff;
+    }
+    #upload-panel .wordmark::before { content: '◆ '; color: #7c5cbf; font-size: 0.7em; vertical-align: 0.15em; }
+    #upload-panel .tagline { color: #8a8ab0; font-size: 1rem; margin-top: -0.8rem; }
+    #upload-panel .howto {
+      font-size: 0.82rem; color: #777; max-width: 480px; text-align: center;
+      background: #16162e; border: 1px solid #2a2a44; border-radius: 8px; padding: 0.6rem 1rem;
+    }
+    #upload-panel .howto b { color: #a8d8ff; font-weight: 600; }
+    #recent-chars { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+    .recent-pill {
+      background: #20203c; border: 1px solid #3a3a5a; color: #c9b8ff;
+      border-radius: 18px; padding: 0.3rem 1rem; font-size: 0.85rem; cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .recent-pill:hover { background: #2c2c52; border-color: #7c5cbf; }
+    .recent-pill small { color: #777; margin-left: 0.4em; }
+
+    /* ── Toolbar export menu & character switcher ── */
+    #export-menu { position: relative; }
+    #export-menu > summary {
+      list-style: none; cursor: pointer;
+      padding: 0.5rem 1.2rem; border-radius: 6px; font-size: 0.9rem; font-weight: 500;
+      background: #333; color: #ccc; border: 1px solid #555; user-select: none;
+    }
+    #export-menu > summary::-webkit-details-marker { display: none; }
+    #export-menu > summary:hover { opacity: 0.85; }
+    #export-menu-body {
+      position: absolute; right: 0; top: calc(100% + 4px); z-index: 200;
+      display: flex; flex-direction: column; gap: 2px; min-width: 11rem;
+      background: #1e1e3c; border: 1px solid #4a4a7a; border-radius: 8px; padding: 0.35rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+    }
+    #export-menu-body .btn { text-align: left; background: none; border: none; color: #ccc; }
+    #export-menu-body .btn:hover { background: #2c2c52; opacity: 1; }
+    #char-switcher { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+    .cs-pill {
+      background: #20203c; border: 1px solid #3a3a5a; color: #9a9ac0;
+      border-radius: 14px; padding: 0.15rem 0.7rem; font-size: 0.76rem; cursor: pointer;
+    }
+    .cs-pill:hover { border-color: #7c5cbf; color: #ddd; }
+    .cs-pill.active { background: #5c3c9f; border-color: #7c5cbf; color: #fff; }
+
+    /* ── Search-mode indicator ── */
+    #search-mode {
+      display: none; align-items: center; gap: 0.4rem;
+      font-size: 0.76rem; color: #f0c040; white-space: nowrap;
+    }
+    #search-mode button {
+      background: none; border: 1px solid #5a4a00; color: #f0c040;
+      border-radius: 10px; padding: 0 0.5em; cursor: pointer; font-size: 0.74rem;
+    }
+
+    /* ── Glossary hint bar ── */
+    #gloss-hint {
+      display: none; align-items: center; gap: 0.6rem;
+      background: #14142e; border-bottom: 1px solid #2a2a44;
+      padding: 0.35rem 1.5rem; font-size: 0.78rem; color: #8a8ab0;
+    }
+    #gloss-hint .gloss { pointer-events: none; }
+    #gloss-hint button {
+      margin-left: auto; background: none; border: none; color: #666;
+      cursor: pointer; font-size: 0.9rem; padding: 0 0.4rem;
+    }
+    #gloss-hint button:hover { color: #ccc; }
+
+    /* ── Stat cards (Combat tab) ── */
+    .stat-cards { display: flex; gap: 0.7rem; flex-wrap: wrap; margin: 0.6rem 0 1rem; }
+    .stat-card {
+      background: linear-gradient(160deg, #1e1e3e 0%, #16162e 100%);
+      border: 1px solid #3a3a5a; border-radius: 10px;
+      padding: 0.55rem 1rem 0.5rem; min-width: 5.2rem; text-align: center;
+    }
+    .stat-card .sc-label {
+      font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.09em;
+      color: #7a8ab8; margin-bottom: 0.15rem;
+    }
+    .stat-card .sc-val { font-size: 1.45rem; font-weight: 700; color: #e8e8ff; line-height: 1.1; }
+    .stat-card .sc-sub { font-size: 0.66rem; color: #667; margin-top: 0.12rem; }
+    .stat-card.sc-ac   { border-color: #3a6a7a; } .stat-card.sc-ac .sc-val { color: #a8d8ff; }
+    .stat-card.sc-hp   { border-color: #7a3a3a; } .stat-card.sc-hp .sc-val { color: #ff9a9a; }
+    .stat-card.sc-save { border-color: #3a5a3a; } .stat-card.sc-save .sc-val { color: #9de0ad; }
+
+    /* ── Action-cost icons ── */
+    .act-i {
+      font-size: 0.92em; color: #f0c060; letter-spacing: 0.08em; white-space: nowrap;
+      font-family: system-ui, sans-serif;
+    }
+    .act-i.act-r { color: #7ec8e3; }
+    .act-i.act-f { color: #9de0ad; }
+    .act-i.act-t { color: #999; font-size: 0.78em; letter-spacing: 0; }
+
+    /* ── Spell table restyle ── */
+    #rendered .sp-rank-hdr {
+      font-size: 0.92rem; font-weight: 700; text-transform: none; letter-spacing: 0.02em;
+      color: #a8d8ff; padding: 0.9rem 0 0.3rem; border-bottom: none;
+      display: flex; align-items: baseline; gap: 0.6rem;
+    }
+    .sp-slots { font-size: 0.72rem; font-weight: 400; color: #7a8ab8; }
+    /* table-layout:fixed + shared column widths so every rank's table aligns
+       identically instead of each auto-sizing to its own contents. */
+    #rendered table.sp-tbl { width: 100%; table-layout: fixed; }
+    #rendered table.sp-tbl td { padding: 0.3rem 0.6rem; border-left: none; border-right: none; }
+    #rendered table.sp-tbl th { border-left: none; border-right: none; }
+    #rendered table.sp-tbl td, #rendered table.sp-tbl th { overflow-wrap: anywhere; }
+    #rendered table.sp-tbl col.spc-act  { width: 3.4rem; }
+    #rendered table.sp-tbl col.spc-name { width: 24%; }
+    #rendered table.sp-tbl col.spc-trait{ width: 29%; }
+    #rendered table.sp-tbl col.spc-range{ width: 16%; }
+    #rendered table.sp-tbl col.spc-dur  { width: 15%; }
+    #rendered table.sp-tbl col.spc-save { width: 9%; }
+    #rendered table.sp-tbl td.sp-act-cell { text-align: center; }
+    #rendered tr.sp-unprep td { opacity: 0.42; }
+    #rendered tr.sp-unprep td:first-child::after {
+      content: ' not prepared'; font-size: 0.64rem; color: #b88;
+      font-style: italic; opacity: 1;
+    }
+    .sp-badge.rank-range { border-color: #6a8a5a; color: #b0d8a0; }
+    .trait-chip {
+      display: inline-block; background: #26264a; border: 1px solid #3c3c66;
+      border-radius: 4px; font-size: 0.64rem; padding: 0.02em 0.4em;
+      color: #a0a0cc; margin: 0 0.18em 0.1em 0; text-transform: lowercase;
+      vertical-align: middle;
+    }
+    .trait-chip.tc-fire       { border-color: #7a4a2a; color: #f0a070; }
+    .trait-chip.tc-cold       { border-color: #2a5a7a; color: #80c8f0; }
+    .trait-chip.tc-electricity{ border-color: #7a7a2a; color: #f0f080; }
+    .trait-chip.tc-acid, .trait-chip.tc-poison { border-color: #3a7a3a; color: #90e090; }
+    .trait-chip.tc-mental, .trait-chip.tc-emotion, .trait-chip.tc-fear { border-color: #6a3a7a; color: #d8a0f0; }
+    .trait-chip.tc-healing, .trait-chip.tc-vitality { border-color: #3a7a5a; color: #90e0c0; }
+    .trait-chip.tc-illusion   { border-color: #5a5a8a; color: #b0b0f0; }
+    .sp-save-basic { font-size: 0.68em; color: #888; vertical-align: super; margin-left: 0.2em; }
+
+    /* ── Action-cost filter chips ── */
+    .act-chips { display: inline-flex; gap: 0.25rem; }
+    .act-chip {
+      background: #1e1e3c; border: 1px solid #3a3a5a; color: #999;
+      border-radius: 14px; padding: 0.18rem 0.6rem; font-size: 0.76rem; cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .act-chip:hover { border-color: #5a5a8a; color: #ddd; }
+    .act-chip.active { background: #5c3c9f; border-color: #7c5cbf; color: #fff; }
+
+    /* ── Table overflow wrapper ── */
+    .tbl-wrap { overflow-x: auto; max-width: 100%; }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      #rendered { padding: 0.8rem; }
+      #toolbar { padding: 0.4rem 0.5rem; gap: 0.4rem; }
+      #toolbar .filename { font-size: 0.8rem; }
+      #char-header { padding: 0.5rem 0.8rem; gap: 0.6rem; }
+      #rendered table { font-size: 0.78rem; }
+      #rendered th, #rendered td { padding: 0.25rem 0.45rem; }
+      #search-global { width: 9rem; }
+      #search-global:focus { width: 11rem; }
+      .stat-card { min-width: 4.2rem; padding: 0.4rem 0.6rem; }
+      .stat-card .sc-val { font-size: 1.15rem; }
+      #rendered .tab-btn { padding: 0.35rem 0.6rem; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Upload panel ══════════════════════════════════════════════════════════ -->
+<div id="upload-panel">
+  <h1 class="wordmark">Folio</h1>
+  <p class="tagline">A slick character viewer for Fantasy Grounds PF2e exports</p>
+  <p>Everything happens in your browser — nothing is uploaded anywhere.</p>
+
+  <div id="drop-zone">
+    <span>📄</span>
+    <p>Drop character XML here<br>or click to browse — several files at once are fine</p>
+    <input type="file" id="file-input" accept=".xml,.db" multiple>
+  </div>
+  <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Browse file…</button>
+
+  <div id="recent-chars"></div>
+
+  <p class="howto">To export from Fantasy Grounds: open the <b>Characters</b> list, right-click your character
+  and choose <b>Export</b> (or use <b>/exportchar</b> in chat), then drop the resulting <b>.xml</b> file here.</p>
+</div>
+
+<!-- ══ Output panel ══════════════════════════════════════════════════════════ -->
+<div id="output-panel">
+  <div id="version-bar"></div>
+  <div id="toolbar">
+    <span class="filename" id="filename-label"></span>
+    <div id="char-switcher"></div>
+    <span id="search-mode">searching all tabs <button onclick="clearGlobalSearch()">✕ clear</button></span>
+    <button class="btn btn-secondary" id="btn-collapse" onclick="toggleAllSections()">Collapse all</button>
+    <details id="export-menu">
+      <summary>Export ▾</summary>
+      <div id="export-menu-body">
+        <button class="btn" id="btn-raw"    onclick="toggleView()">Raw Markdown</button>
+        <button class="btn" id="btn-copy"   onclick="copyMd()">Copy .md</button>
+        <button class="btn"                 onclick="downloadMd()">Download .md</button>
+        <button class="btn" id="btn-dl-xml" onclick="downloadXml()">Download XML</button>
+      </div>
+    </details>
+    <button class="btn btn-secondary"                 onclick="reset()">← Load another file</button>
+  </div>
+  <div id="char-header">
+    <div class="ch-name" id="ch-name-label"></div>
+    <div class="ch-stats" id="ch-stats-bar"></div>
+  </div>
+  <div id="gloss-hint">
+    💡 <span><span class="gloss">Dotted-underlined names</span> are live rules links — hover or tap one for the full spell, feat, or item text.</span>
+    <button title="Dismiss" onclick="dismissGlossHint()">✕</button>
+  </div>
+  <div id="content-area">
+    <div id="rendered"></div>
+    <div id="raw-view"><pre id="raw-pre"></pre></div>
+  </div>
+</div>
+
+<!-- ══ Glossary hover popup ════════════════════════════════════════════════════ -->
+<div id="gloss-popup"></div>
+
+<!-- ══ Full-entry modal (replaces new-window pop-out) ════════════════════════ -->
+<dialog id="gloss-modal">
+  <div id="gloss-modal-content"></div>
+  <div id="gloss-modal-btns">
+    <div id="gloss-modal-edit-area"></div>
+    <button class="btn btn-secondary" id="gloss-modal-close">Close</button>
+  </div>
+</dialog>
+
+<!-- ══ Automation editor dialog ══════════════════════════════════════════════ -->
+<dialog id="auto-edit-dialog">
+  <h3 id="auto-edit-title">Edit Automation</h3>
+
+  <details id="aed-builder" open>
+    <summary>Build entry</summary>
+    <div id="aed-builder-body">
+
+      <div class="ab-row">
+        <label>Type</label>
+        <select id="ab-kw">
+          <optgroup label="Stat bonuses (EFFECT)">
+            <option value="EFF_SKILL">Skill bonus</option>
+            <option value="EFF_SAVE">Saving throw bonus</option>
+            <option value="EFF_AC">AC bonus</option>
+            <option value="EFF_INIT">Initiative bonus</option>
+            <option value="EFF_ATK">Attack bonus</option>
+            <option value="EFF_DMG">Damage bonus</option>
+            <option value="EFF_SPELLDC">Spell DC bonus</option>
+            <option value="EFF_RESIST">Damage resistance</option>
+          </optgroup>
+          <optgroup label="Other bonuses">
+            <option value="SPEED">Speed bonus [SPEED]</option>
+            <option value="HP">HP per level [HP miscperlevel]</option>
+          </optgroup>
+          <optgroup label="Senses &amp; Movement">
+            <option value="SENSES">Special sense [SENSES]</option>
+            <option value="MOVEMENT">Special movement [MOVEMENT]</option>
+          </optgroup>
+          <optgroup label="Proficiencies">
+            <option value="PROF_SKILL">Skill proficiency [SKILL]</option>
+            <option value="PROF_SAVE">Save proficiency</option>
+            <option value="PROF_DEFENSE">Defense proficiency [DEFENSE]</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="ab-row" id="ab-row-scope">
+        <label>When</label>
+        <select id="ab-scope">
+          <option value="equip">While worn/equipped</option>
+          <option value="char">Always active</option>
+          <option value="item">While in possession</option>
+          <option value="carry">While carried</option>
+        </select>
+      </div>
+
+      <div class="ab-row" id="ab-row-movtype">
+        <label>Movement</label>
+        <select id="ab-movtype">
+          <option value="swim">Swim</option>
+          <option value="fly">Fly</option>
+          <option value="climb">Climb</option>
+          <option value="burrow">Burrow</option>
+        </select>
+      </div>
+
+      <div class="ab-row" id="ab-row-target">
+        <label id="ab-target-label">Target</label>
+        <select id="ab-target"></select>
+      </div>
+
+      <div class="ab-row" id="ab-row-val">
+        <label id="ab-val-label">Value</label>
+        <input type="number" id="ab-val" value="2" min="-20" max="20">
+      </div>
+
+      <div class="ab-row" id="ab-row-btype">
+        <label>Bonus type</label>
+        <select id="ab-btype">
+          <option value="item">item</option>
+          <option value="circumstance">circumstance</option>
+          <option value="status">status</option>
+          <option value="">(untyped)</option>
+        </select>
+      </div>
+
+      <div class="ab-row" id="ab-row-text">
+        <label id="ab-text-label">Sense</label>
+        <input type="text" id="ab-text" list="ab-senses-list" placeholder="e.g. Darkvision">
+        <datalist id="ab-senses-list">
+          <option value="Darkvision">
+          <option value="Lowlight Vision">
+          <option value="Scent (imprecise) 30 ft">
+          <option value="Tremorsense (imprecise) 30 ft">
+        </datalist>
+      </div>
+
+      <div class="ab-row" id="ab-row-rank">
+        <label>Rank</label>
+        <select id="ab-rank">
+          <option value="trained">Trained</option>
+          <option value="expert">Expert</option>
+          <option value="master">Master</option>
+          <option value="legendary">Legendary</option>
+        </select>
+      </div>
+
+      <div id="ab-generated">—</div>
+      <button class="btn btn-secondary" id="ab-add">↓ Add to string</button>
+    </div>
+  </details>
+
+  <div class="aed-label">Automation string</div>
+  <textarea id="auto-edit-textarea" rows="3" spellcheck="false" autocomplete="off"></textarea>
+  <div class="aed-label">Preview</div>
+  <div id="auto-edit-preview"><em>No automation set.</em></div>
+  <div id="auto-edit-btns">
+    <button class="btn btn-secondary" id="auto-edit-cancel">Cancel</button>
+    <button class="btn btn-primary"   id="auto-edit-save">Save to character</button>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+
+// ══ Constants ════════════════════════════════════════════════════════════════
+
+const KNOWN_VERSIONS = new Map([
+  ['5.1|20260124|21|CoreRPG:7', 'tested — Tevok_15 export'],
+]);
+
+const ABILITY_ABBR = {
+  strength:'STR', dexterity:'DEX', constitution:'CON',
+  intelligence:'INT', wisdom:'WIS', charisma:'CHA',
+};
+const PROF_LABEL = {
+  untrained:'Untrained', trained:'Trained', expert:'Expert',
+  master:'Master', legendary:'Legendary',
+};
+const CARRIED_MAP = { '0':'in container', '1':'carried', '2':'worn', '3':'not carried' };
+
+// ══ XML helpers ══════════════════════════════════════════════════════════════
+
+function findPath(elem, path) {
+  if (!elem) return null;
+  let node = elem;
+  for (const part of path.split('/')) {
+    node = Array.from(node.children).find(c => c.tagName === part) ?? null;
+    if (!node) return null;
+  }
+  return node;
+}
+
+function txt(elem, path, def = '') {
+  const node = findPath(elem, path);
+  return node ? (node.textContent.trim() || def) : def;
+}
+
+function num(elem, path, def = 0) {
+  const v = parseInt(txt(elem, path, String(def)), 10);
+  return isNaN(v) ? def : v;
+}
+
+function children(elem, path) {
+  const node = findPath(elem, path);
+  return node ? Array.from(node.children) : [];
+}
+
+// ══ Parsers ══════════════════════════════════════════════════════════════════
+
+function parseBasic(char) {
+  // class name lives at classes/*/name — find first child of <classes> then read name
+  let className = '';
+  const classesNode = findPath(char, 'classes');
+  if (classesNode) {
+    const first = classesNode.children[0];
+    if (first) className = txt(first, 'name');
+  }
+  const speedNode = findPath(char, 'speed');
+  return {
+    name:      txt(char, 'name', 'Unknown'),
+    level:     num(char, 'level'),
+    race:      txt(char, 'race'),
+    class:     className,
+    background:txt(char, 'background'),
+    size:      txt(char, 'size'),
+    speed:     speedNode ? num(speedNode, 'total') : 0,
+    traits:    txt(char, 'traits'),
+    notes:     txt(char, 'notes').replace(/\\n/g, '\n'),
+  };
+}
+
+function parseAbilities(char) {
+  const out = {};
+  for (const ab of Object.keys(ABILITY_ABBR)) {
+    const node = findPath(char, `abilities/${ab}`);
+    if (node) out[ab] = { score: num(node, 'score'), bonus: num(node, 'bonus') };
+  }
+  return out;
+}
+
+function weaponDamageMod(stat, traits, wtype, entryBonus, abilities) {
+  if (!stat) return entryBonus;                 // rider entry (e.g. flaming +1d6)
+  let base = abilities[stat]?.bonus ?? 0;
+  const tl = traits.toLowerCase();
+  if (tl.includes('propulsive'))            base = base > 0 ? Math.floor(base / 2) : base;
+  else if (wtype === 1 && !tl.includes('thrown')) base = 0;   // plain ranged
+  return base + entryBonus;
+}
+
+function parseWeapons(char, abilities) {
+  return children(char, 'weaponlist').flatMap(w => {
+    const name = txt(w, 'name').trim();
+    if (!name) return [];
+    const wtype  = num(w, 'type');               // 0 melee, 1 ranged
+    const traits = txt(w, 'traits').trim();
+    const attacks = [];
+    for (let i = 1; i <= 3; i++) {
+      const v = txt(w, `attack${i}`);
+      if (v !== '') attacks.push(/^-?\d+$/.test(v) ? parseInt(v, 10) : v);
+    }
+    const dmgParts = [];
+    for (const d of children(w, 'damagelist')) {
+      let dice = txt(d, 'dice');
+      if (!dice) continue;
+      if (dice.startsWith('d')) dice = '1' + dice;
+      const mod  = weaponDamageMod(txt(d, 'stat'), traits, wtype, num(d, 'bonus'), abilities);
+      const type = txt(d, 'type');
+      dmgParts.push(dice + (mod ? sign(mod) : '') + (type ? ` ${type}` : ''));
+    }
+    return [{
+      name, isRanged: wtype === 1, attacks,
+      damage: dmgParts.join(' + ') || '—',
+      traits, range: num(w, 'rangeincrement'),
+    }];
+  });
+}
+
+function parseDefenses(char) {
+  const hp   = findPath(char, 'hp');
+  const init = findPath(char, 'initiative');
+  const saves = {};
+  for (const sv of ['fortitude', 'reflex', 'will']) {
+    const node = findPath(char, `saves/${sv}`);
+    if (node) saves[sv] = {
+      total:     num(node, 'total'),
+      proflevel: txt(node, 'proflevel'),
+      misc:      num(node, 'misc'),
+    };
+  }
+  return {
+    ac:           num(char, 'ac/totals/general'),
+    hp_total:     hp ? num(hp, 'total')      : 0,
+    hp_current:   hp ? num(hp, 'current')    : 0,
+    hp_ancestry:  hp ? num(hp, 'ancestry')   : 0,
+    hp_class_per_level: hp ? num(hp, 'classperlevel') : 0,
+    hp_misc_per_level:  hp ? num(hp, 'miscperlevel')  : 0,
+    dying_at:     hp ? num(hp, 'dieatdying') : 4,
+    saves,
+    init_perc:    init ? num(init, 'perceptiontotal') : 0,
+    init_stealth: init ? num(init, 'stealthttoal')    : 0,
+  };
+}
+
+function parseSkills(char) {
+  return children(char, 'skilllist').map(s => {
+    const label = txt(s, 'label');
+    const sub   = txt(s, 'sublabel');
+    return {
+      name:           sub ? `${label} (${sub})` : label,
+      label,
+      sublabel:       sub,
+      prof:           num(s, 'prof'),
+      proflevel:      txt(s, 'proflevel', 'untrained'),
+      stat:           num(s, 'stat'),
+      statname:       txt(s, 'statname'),
+      misc:           num(s, 'misc'),
+      total:          num(s, 'total'),
+      armorPenalized: num(s, 'armorcheckmultiplier') === 1,
+    };
+  });
+}
+
+function parseEffects(char) {
+  const out  = [];
+  const seen = new Set();
+  for (const e of children(char, 'effects')) {
+    // FGU has two storage forms:
+    //   Automation-applied effects: label = baked numeric ("SKILL: +3 untyped, untrained")
+    //   Manually-typed effects:     label = raw template  ("SKILL: +{HLVL} untyped, untrained")
+    //                               calculated_effect = live computed value (updated on level change)
+    const template = txt(e, 'label');                        // raw — may contain {HLVL} etc.
+    const computed = txt(e, 'calculated_effect');             // live value when template is stored
+    const label    = computed || template;                   // prefer computed for display
+    const rn    = txt(e, 'effectsourcelink/recordname');
+    const mId   = rn.match(/(id-\d+)$/);
+    const key   = `${template}|${mId ? mId[1] : rn}`;      // dedup on template, not computed
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      name:       txt(e, 'name'),
+      label,      // display value (computed if available)
+      template,   // raw template for pattern matching
+      isactive:   num(e, 'isactive'),
+      recordname: rn,
+    });
+  }
+  return out;
+}
+
+function descText(item) {
+  const desc = findPath(item, 'description');
+  if (!desc) return '';
+  return desc.innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function itemPassiveBonuses(item, bloodlineSkills = []) {
+  const text = descText(item);
+  if (!text) return [];
+
+  const bonuses = {};
+  function record(target, value) {
+    const k = target.toLowerCase().replace(/\s+checks?$/, '').trim();
+    if ((k === 'bloodline skills' || k === 'bloodline skill') && bloodlineSkills.length) {
+      for (const skill of bloodlineSkills)
+        bonuses[skill] = Math.max(bonuses[skill] ?? 0, value);
+    } else {
+      bonuses[k] = Math.max(bonuses[k] ?? 0, value);
+    }
+  }
+
+  const primary = /\+(\d+)(?:-foot)? item bonus to (?:your |each of your )?((?:[A-Za-z]\w*)(?:(?!\s+checks?|\s+and\s+(?:a|allows?|the)\s)[\w ,])*?)(?=\s+checks?|,|;|\.|$|\s+and\s+(?:a|allows?|an?\s))/g;
+  const lastTargets = [];
+  for (const m of text.matchAll(primary)) {
+    const val  = parseInt(m[1], 10);
+    const raw  = m[2].trim();
+    for (const p of raw.split(/\s+and\s+/i)) {
+      const part = p.trim();
+      if (part && part.length < 50) {
+        record(part, val);
+        lastTargets.push(part.toLowerCase().trim());
+      }
+    }
+  }
+
+  const override = /grants?\s+a\s+\+(\d+)(?:\s+item)?\s+bonus\b(?!\s+to\b)/gi;
+  for (const m of text.matchAll(override)) {
+    const val = parseInt(m[1], 10);
+    for (const tgt of lastTargets) bonuses[tgt] = Math.max(bonuses[tgt] ?? 0, val);
+  }
+
+  for (const m of text.matchAll(/bonus to Speed is \+(\d+) feet/gi))
+    bonuses['speed'] = Math.max(bonuses['speed'] ?? 0, parseInt(m[1], 10));
+
+  for (const m of text.matchAll(/(?:High Jump and Long Jump|Long Jump) is \+(\d+)/gi))
+    bonuses['athletics (jump)'] = Math.max(bonuses['athletics (jump)'] ?? 0, parseInt(m[1], 10));
+
+  return Object.entries(bonuses).sort((a,b) => a[0].localeCompare(b[0])).map(([k, v]) =>
+    (k === 'speed' || k.includes('foot')) ? `+${v} ft Speed` : `+${v} ${titleCase(k)}`
+  );
+}
+
+function parseInventory(char, bloodlineSkills = []) {
+  const itemEffects = {};
+  const itemEffSeen = {};
+  for (const e of children(char, 'effects')) {
+    if (!num(e, 'isactive')) continue;
+    const rn    = txt(e, 'effectsourcelink/recordname');
+    const mItem = rn.match(/inventorylist\.(id-\d+)/);
+    if (mItem) {
+      const label  = txt(e, 'label') || txt(e, 'calculated_effect');
+      const itemId = mItem[1];
+      if (label) {
+        itemEffSeen[itemId] ??= new Set();
+        if (!itemEffSeen[itemId].has(label)) {
+          itemEffSeen[itemId].add(label);
+          itemEffects[itemId] ??= [];
+          itemEffects[itemId].push(label);
+        }
+      }
+    }
+  }
+
+  return children(char, 'inventorylist').map(item => {
+    const carriedRaw = txt(item, 'carried', '0');
+    const itemId     = item.tagName;
+    const tracked    = itemEffects[itemId] ?? [];
+    const bonuses    = tracked.length ? tracked : itemPassiveBonuses(item, bloodlineSkills);
+    const automation = txt(item, 'automation').trim();
+    return {
+      id:         itemId,
+      name:       txt(item, 'name'),
+      level:      txt(item, 'level', '0'),
+      bulk:       txt(item, 'bulk', '—'),
+      count:      num(item, 'count', 1),
+      subtype:    txt(item, 'subtype'),
+      type:       txt(item, 'type'),
+      cost:       txt(item, 'cost'),
+      carried:    CARRIED_MAP[carriedRaw] ?? '?',
+      carried_raw:carriedRaw,
+      location:   txt(item, 'location', '').trim(),
+      traits:     txt(item, 'traits', ''),
+      bonuses,
+      automation,
+    };
+  });
+}
+
+function parseBloodlineSkills(char) {
+  for (const sa of children(char, 'specialabilitylist')) {
+    if (txt(sa, 'subcategory').toLowerCase() !== 'bloodline') continue;
+    const textNode = findPath(sa, 'text');
+    if (!textNode) continue;
+    const flat = textNode.innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const m = flat.match(/Bloodline Skills?\s+([\w ,]+?)(?:\s+(?:Sorcerous|Bloodline Spells?|Blood Magic))/);
+    if (m) return m[1].split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  }
+  return [];
+}
+
+function parseFeats(char) {
+  return children(char, 'featlist').flatMap(f => {
+    const name = txt(f, 'name');
+    if (!name) return [];
+    return [{ name, level: num(f, 'level_applied') || num(f, 'level'), traits: txt(f, 'traits') }];
+  });
+}
+
+function parseSpecialAbilities(char) {
+  return children(char, 'specialabilitylist').flatMap(sa => {
+    const name = txt(sa, 'name');
+    return name ? [{ name, level: num(sa, 'level') }] : [];
+  });
+}
+
+// FG encodes PF2 action costs in <casting> with private-use glyphs (its icon font).
+// Decode into { key (filter value), icons (display), title (tooltip), sort }.
+const CAST_GLYPHS = { '\u008D':'1', '\u008E':'2', '\u008F':'2', '\u0090':'3', '\u009D':'R', '\u0081':'F' };
+const CAST_ICON   = { '1':'◆', '2':'◆◆', '3':'◆◆◆', 'R':'⟳', 'F':'◇' };
+const CAST_TITLE  = { '1':'1 action', '2':'2 actions', '3':'3 actions', 'R':'reaction', 'F':'free action' };
+const CAST_SORT   = { 'F':0, 'R':0.5, '1':1, '2':2, '3':3 };
+
+function parseCastCost(casting) {
+  const s = (casting || '').trim();
+  if (!s) return { key:'', icons:'', title:'', sort:99, html:'—' };
+  const glyphs = [...s].map(c => CAST_GLYPHS[c]).filter(Boolean);
+  if (glyphs.length) {
+    const isRange = /\bto\b/.test(s) && glyphs.length >= 2;
+    const key   = isRange ? glyphs.join('-') : glyphs[0];
+    const icons = isRange
+      ? `${CAST_ICON[glyphs[0]]}–${CAST_ICON[glyphs.at(-1)]}`
+      : glyphs.map(g => CAST_ICON[g]).join('/');
+    const title = isRange
+      ? `${glyphs[0]} to ${glyphs.at(-1)} actions`
+      : glyphs.map(g => CAST_TITLE[g]).join(' or ');
+    const cls = glyphs[0] === 'R' ? ' act-r' : glyphs[0] === 'F' ? ' act-f' : '';
+    return {
+      key, icons, title, sort: CAST_SORT[glyphs[0]] ?? 9,
+      html: `<span class="act-i${cls}" title="${escHtml(title)}">${escHtml(icons)}</span>`,
+    };
+  }
+  // Plain text like "1 minute", "10 minutes"
+  const short = s.replace(/\bminutes?\b/, 'min').replace(/\bhours?\b/, 'hr');
+  return { key:'T', icons:short, title:s, sort:10, html:`<span class="act-i act-t" title="${escHtml(s)}">${escHtml(short)}</span>` };
+}
+
+// Plain-text version of an FG formattedtext field (for search indexing)
+function fgFieldText(parent, tag) {
+  const node = findPath(parent, tag);
+  if (!node) return '';
+  return node.innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function parseSpellsets(char) {
+  return children(char, 'spellset').map(sc => {
+    const levels = {};
+    for (const lnode of children(sc, 'levels')) {
+      const levelNum = txt(lnode, 'level') || lnode.tagName.replace(/\D/g, '');
+      const spells = children(lnode, 'spells').flatMap(sp => {
+        const name = txt(sp, 'name');
+        if (!name) return [];
+        // Searchable prose: effects + save tiers + heightened + trigger
+        const desc = [
+          fgFieldText(sp, 'effects'),
+          fgFieldText(sp, 'success'), fgFieldText(sp, 'failure'),
+          fgFieldText(sp, 'critsuccess'), fgFieldText(sp, 'critfailure'),
+          fgFieldText(sp, 'heightened'),
+          txt(sp, 'trigger'),
+        ].filter(Boolean).join(' ').slice(0, 1200);
+        return [{
+          name,
+          is_cantrip: txt(sp, 'spelltype') === 'CANTRIP',
+          // FG has no signature-spell field — set later by dedupeSignatureClones
+          // when a contiguous heightened clone-run is detected.
+          is_sig:     false,
+          prepared:   txt(sp, 'prepared') === '1',
+          has_prep:   findPath(sp, 'prepared') !== null,
+          cast:       num(sp, 'cast'),
+          max_cast:   num(sp, 'maxcast'),
+          act:      parseCastCost(txt(sp, 'casting')),
+          base_level: txt(sp, 'level'),
+          save:     txt(sp, 'savingthrow'),
+          range:    txt(sp, 'range'),
+          area:     txt(sp, 'area'),
+          targets:  txt(sp, 'targets'),
+          duration: txt(sp, 'duration'),
+          traits:   txt(sp, 'traits'),
+          trigger:  txt(sp, 'trigger'),
+          desc,
+        }];
+      });
+      if (spells.length) levels[levelNum] = spells;
+    }
+    // Per-rank slot counts (availablelevel0..10)
+    const slots = {};
+    for (let n = 0; n <= 10; n++) {
+      const v = num(sc, `availablelevel${n}`);
+      if (v > 0) slots[String(n)] = v;
+    }
+    return {
+      label:  txt(sc, 'label', '(unnamed)'),
+      dc:     num(sc, 'dc/total'),
+      atk:    num(sc, 'dc/roll'),   // dc/roll = prof + ability = DC - 10
+      cl:     num(sc, 'cl'),
+      levels,
+      slots,
+      // True if this spellset tracks per-spell preparation (prepared caster)
+      isPrepared: Object.values(levels).some(ls => ls.some(s => s.prepared)),
+    };
+  }).map(dedupeSignatureClones);
+}
+
+// FG has no signature-spell automation, so players maintain heightened copies
+// by hand — the same spell re-listed once per rank ("(S) Fireball" at ranks
+// 3..8). Markers like "(S)"/"*" are personal conventions, so detection is
+// marker-agnostic: a clone run is the same base spell (same own <level>),
+// one copy per rank bucket, in CONTIGUOUS buckets. A spell legitimately
+// learned at two ranks (Haste at 3 and 7) is non-contiguous and stays as
+// separate rows. Runs are merged into one row with a rank-range badge;
+// the grouping analysis is kept on ss.sigInfo for the Data Health check.
+function dedupeSignatureClones(ss) {
+  // Strip a short leading "(X)" tag and trailing asterisks — covers "(S) ",
+  // "(B) ", "Fireball *" and similar personal markers.
+  const baseKey = n => n.replace(/^\([A-Za-z0-9]{1,3}\)\s*/, '').replace(/\*+\s*$/, '').trim().toLowerCase();
+  const slotRanks = Object.keys(ss.slots).map(Number).filter(n => n >= 1);
+  const maxRank = slotRanks.length ? Math.max(...slotRanks) : 0;
+
+  const groups = {};   // baseKey -> [{rank, sp}]
+  for (const [rank, spells] of Object.entries(ss.levels))
+    for (const sp of spells)
+      (groups[baseKey(sp.name)] ??= []).push({ rank, sp });
+
+  const sigGroups = [];
+  const newLevels = {};
+  for (const [key, list] of Object.entries(groups)) {
+    list.sort((a, b) => (parseInt(a.rank) || 0) - (parseInt(b.rank) || 0));
+    const buckets    = list.map(x => parseInt(x.rank)).filter(n => !isNaN(n));
+    const allNumeric = buckets.length === list.length;
+    // Same base rank on EVERY entry — placeholders with a missing/blank
+    // <level> (e.g. "(1st)/(2nd)/(3rd) Halcyon Speaker" tiers) never merge.
+    const allHaveBase = list.every(x => /^\d+$/.test(x.sp.base_level));
+    const baseLevels = new Set(list.map(x => x.sp.base_level));
+    const sameBase   = allHaveBase && baseLevels.size === 1;
+    const uniq       = [...new Set(buckets)];
+    const contiguous = allNumeric && uniq.length === buckets.length &&
+                       uniq.every((b, i) => i === 0 || b === uniq[i - 1] + 1);
+    const isRun = list.length > 1 && sameBase && contiguous &&
+                  (uniq.length >= 3 || (uniq.length === 2 && uniq.at(-1) === maxRank));
+
+    if (list.length > 1) {
+      sigGroups.push({
+        key,
+        name: list[0].sp.name.replace(/\*+\s*$/, '').trim(),
+        baseRank: sameBase ? parseInt([...baseLevels][0], 10) : null,
+        buckets,
+        isRun,
+      });
+    }
+
+    if (isRun) {
+      const keep = list[0].sp;
+      keep.name = keep.name.replace(/\*+\s*$/, '').trim();
+      keep.rank_min = String(uniq[0]);
+      keep.rank_max = String(uniq.at(-1));
+      keep.is_sig = true;   // a detected clone-run heightens freely = signature
+      (newLevels[list[0].rank] ??= []).push(keep);
+    } else {
+      for (const { rank, sp } of list) (newLevels[rank] ??= []).push(sp);
+    }
+  }
+  ss.sigInfo = { maxRank, groups: sigGroups };
+  ss.levels = newLevels;
+  return ss;
+}
+
+function parseActivities(char) {
+  const grouped = {};   // category -> { sectionLabel -> [names] }
+  for (const grp of children(char, 'activityset')) {
+    const sections = findPath(grp, 'sections');
+    if (!sections) continue;
+    for (const sec of Array.from(sections.children)) {
+      const acts = findPath(sec, 'activities');
+      if (!acts) continue;
+      for (const a of Array.from(acts.children)) {
+        const name = txt(a, 'name');
+        if (!name) continue;
+        const category = txt(a, 'category') || 'Other';
+        const section  = txt(a, 'category_section')
+          .replace(/\s*-\s*(Trained|Expert|Master|Legendary)\s*$/, '');
+        const key = (category === 'Skill Activities' && section) ? section : '';
+        (grouped[category] ??= {})[key] ??= [];
+        grouped[category][key].push(name);
+      }
+    }
+  }
+  for (const cat of Object.values(grouped))
+    for (const k of Object.keys(cat))
+      cat[k] = [...new Set(cat[k])].sort();
+  return grouped;
+}
+
+function parseLanguages(char) {
+  return children(char, 'languagelist').map(l => txt(l, 'name')).filter(Boolean);
+}
+
+function parseCoins(char) {
+  const coins = {};
+  for (const c of children(char, 'coins')) {
+    const name = txt(c, 'name');
+    if (name) coins[name] = num(c, 'amount');
+  }
+  return coins;
+}
+
+function parseProficiencies(char) {
+  const out = { attacks:[], defenses:[], spellclasses:[] };
+  const profNode = findPath(char, 'proficiencies');
+  if (!profNode) return out;
+  for (const item of children(profNode, 'attacks'))
+    out.attacks.push({ name: txt(item, 'name'), proflevel: txt(item, 'proflevel') });
+  for (const item of children(profNode, 'defenses'))
+    out.defenses.push({ name: txt(item, 'name'), proflevel: txt(item, 'proflevel') });
+  for (const item of children(profNode, 'spellclass'))
+    out.spellclasses.push({ name: txt(item, 'name'), proflevel: txt(item, 'proflevel'), total: num(item, 'total') });
+  return out;
+}
+
+// ══ Consistency checks ═══════════════════════════════════════════════════════
+
+function parseSkillEffects(effects) {
+  const out = {};
+  for (const eff of effects) {
+    if (!eff.isactive) continue;
+    for (const m of eff.label.matchAll(/SKILL:\s*([+-]\d+)\s+(\w+)(?:,\s*(\w+))?/gi)) {
+      const bonus  = parseInt(m[1], 10);
+      const btype  = m[2].toLowerCase();
+      const target = (m[3] || 'all').toLowerCase().trim();
+      out[target] ??= [];
+      out[target].push([bonus, btype, eff.name || eff.label]);
+    }
+  }
+  return out;
+}
+
+function checkSkillTotals(skills, armorCheckPenalty = 0) {
+  return skills.flatMap(s => {
+    const penalty   = s.armorPenalized ? armorCheckPenalty : 0;
+    const expected  = s.prof + s.stat + s.misc + penalty;
+    if (expected === s.total) return [];
+    const penaltyStr = penalty ? ` + armor penalty ${sign(penalty)}` : '';
+    return [`  ⚠ **${s.name}**: stored total ${sign(s.total)} ≠ computed ${sign(expected)} (prof ${sign(s.prof)} + stat ${sign(s.stat)} + misc ${sign(s.misc)}${penaltyStr})`];
+  });
+}
+
+function checkMiscVsEffects(skills, effects) {
+  const skillEffs = parseSkillEffects(effects);
+  return skills.flatMap(s => {
+    if (s.misc === 0) return [];
+    const targets = new Set([s.label.toLowerCase(), (s.sublabel||'').toLowerCase(), 'all'].filter(Boolean));
+    let tracked = 0;
+    for (const t of targets) for (const [b] of skillEffs[t] ?? []) tracked += b;
+    const unaccounted = s.misc - tracked;
+    if (unaccounted <= 0) return [];
+    return [`  ⚠ **${s.name}**: +${s.misc} misc total, +${tracked} explained by tracked active effects → +${unaccounted} is hardcoded directly on the skill (not toggled by item equipped/stowed state)`];
+  });
+}
+
+function checkItemBonusStacking(effects) {
+  const skillEffs = parseSkillEffects(effects);
+  return Object.entries(skillEffs).flatMap(([skill, sources]) => {
+    const itemSources = sources.filter(([, btype]) => btype === 'item');
+    if (itemSources.length <= 1) return [];
+    const details = itemSources.map(([b, , name]) => `'${name}' (+${b})`).join(', ');
+    return [`  ⚠ **${skill}**: multiple item bonuses tracked as active (only the highest applies in PF2e): ${details}`];
+  });
+}
+
+function checkStowedEffects(char) {
+  const itemCarried = {}, itemNames = {};
+  for (const item of children(char, 'inventorylist')) {
+    itemCarried[item.tagName] = txt(item, 'carried', '1');
+    itemNames[item.tagName]   = txt(item, 'name', item.tagName);
+  }
+  const seen = new Set();
+  const issues = [];
+  for (const e of children(char, 'effects')) {
+    if (!num(e, 'isactive')) continue;
+    const rn = txt(e, 'effectsourcelink/recordname');
+    const m  = rn.match(/inventorylist\.(id-\d+)/);
+    if (m) {
+      const itemId = m[1];
+      if (itemCarried[itemId] === '0' || itemCarried[itemId] === '3') {
+        const key = `${itemId}|${txt(e, 'label')}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const effName = txt(e, 'name') || txt(e, 'label');
+        issues.push(`  ⚠ Effect **'${effName}'** (${txt(e, 'label')}) is active but source item **'${itemNames[itemId] ?? itemId}'** is stowed`);
+      }
+    }
+  }
+  return issues;
+}
+
+function checkHp(char, abilities) {
+  const hp = findPath(char, 'hp');
+  if (!hp) return [];
+  const total       = num(hp, 'total');
+  const ancestryHp  = num(hp, 'ancestry');
+  const classPerLvl = num(hp, 'classperlevel');
+  const miscPerLvl  = num(hp, 'miscperlevel');
+  const level       = num(char, 'level');
+  const conMod      = abilities['constitution']?.bonus ?? 0;
+  const expected    = ancestryHp + (classPerLvl + miscPerLvl + conMod) * level;
+  if (expected !== total)
+    return [`  ⚠ HP total **${total}** ≠ expected **${expected}** (${ancestryHp} ancestry + (${classPerLvl} class + ${miscPerLvl} misc + ${conMod} CON) × ${level} levels)`];
+  return [];
+}
+
+function checkArmorCheckPenalty(char, skills) {
+  const enc = findPath(char, 'encumbrance');
+  if (!enc) return [];
+  const penalty = num(enc, 'armorcheckpenalty');
+  if (penalty >= 0) return [];
+  const penalized = skills.filter(s => s.armorPenalized).map(s => s.name);
+  return [
+    `  ⚠ Armor check penalty **${penalty}** is active — character does not meet the equipped armor's Strength requirement.`,
+    `  Affected skills (totals already reduced): ${penalized.join(', ')}`,
+  ];
+}
+
+const BUFF_STAT_RE = /(?:SKILL|ATK|SAVE|AC|SPEED|RESIST|INIT|DMG|VISION|DARKVISION|TEMP|SPELLDC):\s*\+?(\d+)/gi;
+
+function isStatBuff(effects) {
+  if (/\bHeal:/.test(effects)) return true;
+  BUFF_STAT_RE.lastIndex = 0;
+  let m;
+  while ((m = BUFF_STAT_RE.exec(effects)) !== null) {
+    if (parseInt(m[1], 10) > 0) return true;
+  }
+  return false;
+}
+
+function cleanEffectLabel(label, spellName) {
+  const norm = spellName.replace(/^\([A-Z]\)\s*/, '').trim().replace(/\*+$/, '').trim();
+  const re   = new RegExp('^' + norm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?!\\w)', 'i');
+  const m    = label.match(re);
+  if (m) {
+    if (m[0].toUpperCase() === m[0] && norm.length > 2) return label; // FG keyword
+    const rest = label.slice(m[0].length).replace(/^[ ;:]+/, '').trim();
+    return rest; // may be empty — caller filters
+  }
+  return label;
+}
+
+const WAND_NAME_RE = /^Magic Wand\s*[-–]\s*(?:(\d+)(?:st|nd|rd|th)-rank\s+)?(.+)/i;
+
+// Returns true if a spell <action> item benefits the caster or willing allies —
+// i.e. should appear in Useful Effects.
+// Excludes effects applied to unwilling targets (like Charm's +4 save for the enemy).
+function isCasterBenefit(act) {
+  const atype = txt(act, 'type').toLowerCase();
+  if (atype === 'heal') return true;          // healing is always caster-side
+  if (atype !== 'effect') return false;
+  const targeting = txt(act, 'targeting');
+  const apply     = txt(act, 'apply');
+  if (targeting === 'self') return true;      // explicit self-buff
+  if (apply === 'action')   return true;      // ally opts in voluntarily
+  return false;
+}
+
+// ── Effect prettifying (display only — filtering uses the raw FG notation) ──
+
+const EFFECT_NOUNS = {
+  SKILL: 'all skills', ATK: 'attacks', SAVE: 'saves', AC: 'AC',
+  SPEED: 'Speed', INIT: 'initiative', DMG: 'damage',
+  SPELLDC: 'spell DC', TEMP: 'temp HP',
+};
+const ABILITY_NAMES = new Set(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']);
+const SAVE_NAMES    = new Set(['fortitude', 'reflex', 'will']);
+
+// Matches strictly-shaped clauses: KEY: ±N [bonus-type][, target]
+// Anything else (e.g. "SKILL: +4 [LVL] status, thievery") is left untouched.
+const PRETTY_MAIN_RE   = /\b(SKILL|ATK|SAVE|AC|SPEED|INIT|DMG|SPELLDC|TEMP):\s*([+-]?\d+)(?:\s+(status|circumstance|item)\b)?(?:,?\s+([A-Za-z][A-Za-z ]*?))?(?=\s*[|;)]|\s*$)/g;
+const PRETTY_RESIST_RE = /\bRESIST:\s*(\d+)\s+([A-Za-z!]+(?:,\s*![A-Za-z]+)*)/g;
+const PRETTY_VISION_RE = /\b(?:DARK)?VISION:\s*(\d+)(?:\s+([A-Za-z]+))?/g;
+
+function titleCase(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function prettifyEffects(s) {
+  s = s.replace(PRETTY_RESIST_RE, (m, val, types) => {
+    const parts = types.split(',').map(t => t.trim()).map(t => t.startsWith('!') ? `except ${t.slice(1)}` : t);
+    return `Resist ${val} ${parts.join(', ')}`;
+  });
+  s = s.replace(PRETTY_VISION_RE, (m, val, vtype) => `${titleCase(vtype || 'darkvision')} ${val} ft`);
+  s = s.replace(PRETTY_MAIN_RE, (m, key, val, btype, target) => {
+    key = key.toUpperCase();
+    if (!val.startsWith('+') && !val.startsWith('-')) val = '+' + val;
+    let noun = EFFECT_NOUNS[key];
+    if (target) {
+      const t = target.trim().toLowerCase();
+      if (key === 'SKILL')                          noun = titleCase(t) + (ABILITY_NAMES.has(t) ? ' skills' : '');
+      else if (key === 'SAVE' && SAVE_NAMES.has(t)) noun = titleCase(t) + ' saves';
+      else if (key === 'DMG')                       noun = `${t} damage`;
+      else if (key === 'ATK')                       noun = `${t} attacks`;
+      else                                          noun = `${noun} (${t})`;
+    }
+    let out = key === 'SPEED' ? `${val} ft ${noun}` : `${val} ${noun}`;
+    if (btype) out += ` (${btype})`;
+    return out;
+  });
+  return s;
+}
+
+function parseTemporaryEffects(char) {
+  const CONSUMABLE_TYPES    = new Set(['consumable', 'alchemical', 'consumables']);
+  const CONSUMABLE_SUBTYPES = new Set([
+    'potion', 'elixir', 'oil', 'talisman', 'snare', 'scroll', 'bomb',
+    'alchemical elixir', 'alchemical bomb', 'alchemical tool',
+    'alchemical poison', 'ammunition',
+  ]);
+
+  const consumables  = [];
+  const wand_norms   = new Set();   // normalised lower-case spell names
+  const wand_pending = [];          // [{norm, spellDisp, itemLevel, nameRank}]
+
+  // ── Single pass over inventory: wand items + consumables ────────────────
+  for (const item of children(char, 'inventorylist')) {
+    const itype    = txt(item, 'type').toLowerCase();
+    const isubtype = txt(item, 'subtype').toLowerCase();
+    const iname    = txt(item, 'name');
+
+    // Wand items: FG auto-places the wand's spell in the spellset; we
+    // attribute it back to the wand item and suppress it from the
+    // spellset section.
+    if (itype.includes('wand') || isubtype.includes('wand')) {
+      const m = WAND_NAME_RE.exec(iname);
+      if (m) {
+        const nameRank  = m[1] ? parseInt(m[1], 10) : 0;
+        const spellDisp = m[2].trim();
+        const norm = spellDisp.replace(/^\([A-Z]\)\s*/, '').replace(/\*+$/, '').trim().toLowerCase();
+        wand_norms.add(norm);
+        wand_pending.push({ norm, spellDisp, itemLevel: num(item, 'level'), nameRank });
+      }
+      continue;
+    }
+
+    const itraits = txt(item, 'traits').toLowerCase();
+    if (!CONSUMABLE_TYPES.has(itype) && !CONSUMABLE_SUBTYPES.has(isubtype) && !itraits.includes('consumable'))
+      continue;
+
+    const name    = iname;
+    const level   = num(item, 'level');
+    const subtype = txt(item, 'subtype') || txt(item, 'type');
+    const count   = num(item, 'count') || 1;
+
+    const effectParts = [];
+    let duration = '';
+    for (const action of children(item, 'actions')) {
+      const atype = txt(action, 'type').toLowerCase();
+      const label = txt(action, 'label').trim();
+      if (atype === 'heal') {
+        const diceParts = [];
+        for (const hl of children(action, 'heallist')) {
+          const d = txt(hl, 'dice'), b = num(hl, 'bonus');
+          if (d) diceParts.push(b ? `${d}+${b}` : d);
+        }
+        if (diceParts.length) effectParts.push(`Heal: ${diceParts.join(', ')}`);
+      } else if (atype === 'effect' && label) {
+        effectParts.push(label);
+        if (!duration) {
+          const dm = num(action, 'durmod'), du = txt(action, 'durunit'), dml = num(action, 'durmult') || 1;
+          if (dm > 0 && du) duration = `${dm * dml} ${du}`;
+        }
+      }
+    }
+    const effectsStr = effectParts.join(' | ');
+    if (!isStatBuff(effectsStr)) continue;
+    consumables.push({
+      name:     count > 1 ? `${name} ×${count}` : name,
+      level, subtype,
+      effects:  effectsStr,
+      duration: duration || '—',
+    });
+  }
+
+  // ── Look up each wand spell in the spellsets for effects/duration ───────
+  const wandSpellData = {};  // norm_lower → {effects, duration, ssRank}
+  for (const sc of children(char, 'spellset')) {
+    for (const lnode of children(sc, 'levels')) {
+      const lvlStr = txt(lnode, 'level') || lnode.tagName.replace(/\D/g, '');
+      const lvlNum = parseInt(lvlStr, 10) || 0;
+      for (const sp of children(lnode, 'spells')) {
+        const name = txt(sp, 'name');
+        if (!name) continue;
+        const norm = name.replace(/^\([A-Z]\)\s*/, '').trim().replace(/\*+$/, '').trim().toLowerCase();
+        if (!wand_norms.has(norm) || wandSpellData[norm]) continue;
+        const actLabels = [];
+        let actDur = '';
+        for (const act of children(sp, 'actions')) {
+          if (!isCasterBenefit(act)) continue;
+          const atype = txt(act, 'type').toLowerCase();
+          const lbl   = txt(act, 'label').trim();
+          if (atype === 'heal') {
+            // Summarise heal: dice, or flat temp HP scaling with rank
+            const diceParts = [];
+            let flatTotal = 0;
+            for (const hl of children(act, 'heallist')) {
+              const d = txt(hl, 'dice'), b = num(hl, 'bonus');
+              const stat = txt(hl, 'stat'), smult = num(hl, 'statmult') || 1;
+              if (d) diceParts.push(b ? `${d}+${b}` : d);
+              else   flatTotal += b + (stat === 'sl' ? smult * lvlNum : 0);
+            }
+            if (diceParts.length) actLabels.push(`Heal: ${diceParts.join(', ')}`);
+            else if (flatTotal && txt(act, 'healtype') === 'temp') actLabels.push(`TEMP: ${flatTotal}`);
+          } else if (lbl) {
+            const cl = cleanEffectLabel(lbl, name);
+            if (cl) actLabels.push(cl);
+          }
+          if (!actDur) {
+            const dm = num(act, 'durmod'), du = txt(act, 'durunit'), dml = num(act, 'durmult') || 1;
+            if (dm > 0 && du) actDur = `${dm * dml} ${du}`;
+          }
+        }
+        const duration   = txt(sp, 'duration') || actDur || '—';
+        const effectsStr = actLabels.join(' | ');
+        if (isStatBuff(effectsStr)) wandSpellData[norm] = { effects: effectsStr, duration, ssRank: lvlNum };
+      }
+    }
+  }
+
+  // Add wand items that have a buff effect. The Item column shows the
+  // spell name; rank + "wand" in the Type column identify the item
+  // (full item name still appears in the Inventory section).
+  for (const { norm, spellDisp, itemLevel, nameRank } of wand_pending) {
+    if (wandSpellData[norm]) {
+      const { effects, duration, ssRank } = wandSpellData[norm];
+      const rank = nameRank || ssRank;
+      consumables.push({
+        name:    spellDisp,
+        level:   itemLevel,
+        subtype: rank ? `Wand (rank ${rank}, 1/day)` : 'Wand (1/day)',
+        effects, duration,
+      });
+    }
+  }
+
+  consumables.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+
+  // ── Buff Spells ───────────────────────────────────────────────────────────
+  const spellsetMap = {};  // label -> {norm -> entry}
+  for (const sc of children(char, 'spellset')) {
+    const scLabel = txt(sc, 'label') || '(unnamed)';
+    if (!spellsetMap[scLabel]) spellsetMap[scLabel] = {};
+    for (const lnode of children(sc, 'levels')) {
+      const lvlStr = txt(lnode, 'level') || lnode.tagName.replace(/\D/g, '');
+      const lvlNum = parseInt(lvlStr, 10) || 0;
+      for (const sp of children(lnode, 'spells')) {
+        const name = txt(sp, 'name');
+        if (!name) continue;
+        // Skip wand/staff spells — they appear in the Items section
+        const spNorm = name.replace(/^\([A-Z]\)\s*/, '').trim().replace(/\*+$/, '').trim().toLowerCase();
+        if (wand_norms.has(spNorm)) continue;
+        const actLabels = [];
+        let actDur = '';
+        for (const act of children(sp, 'actions')) {
+          if (!isCasterBenefit(act)) continue;
+          const atype = txt(act, 'type').toLowerCase();
+          const lbl   = txt(act, 'label').trim();
+          if (atype === 'heal') {
+            const diceParts = [];
+            let flatTotal = 0;
+            for (const hl of children(act, 'heallist')) {
+              const d = txt(hl, 'dice'), b = num(hl, 'bonus');
+              const stat = txt(hl, 'stat'), smult = num(hl, 'statmult') || 1;
+              if (d) diceParts.push(b ? `${d}+${b}` : d);
+              else   flatTotal += b + (stat === 'sl' ? smult * lvlNum : 0);
+            }
+            if (diceParts.length) actLabels.push(`Heal: ${diceParts.join(', ')}`);
+            else if (flatTotal && txt(act, 'healtype') === 'temp') actLabels.push(`TEMP: ${flatTotal}`);
+          } else if (lbl) {
+            const cleaned = cleanEffectLabel(lbl, name);
+            if (cleaned) actLabels.push(cleaned);
+          }
+          if (!actDur) {
+            const dm = num(act, 'durmod'), du = txt(act, 'durunit'), dml = num(act, 'durmult') || 1;
+            if (dm > 0 && du) actDur = `${dm * dml} ${du}`;
+          }
+        }
+        if (!actLabels.length) continue;
+        const duration = txt(sp, 'duration') || actDur || '—';
+        const norm = name.replace(/^\([A-Z]\)\s*/, '').trim().replace(/\*+$/, '').trim();
+        const existing = spellsetMap[scLabel][norm];
+        if (!existing || lvlNum > existing.spell_level) {
+          const seen = new Set(), unique = [];
+          for (const lbl of actLabels) { if (!seen.has(lbl)) { seen.add(lbl); unique.push(lbl); } }
+          spellsetMap[scLabel][norm] = { name, spell_level: lvlNum, effects: unique.join(' | '), duration };
+        }
+      }
+    }
+  }
+
+  const buffSpells = Object.entries(spellsetMap)
+    .map(([label, entries]) => [
+      label,
+      Object.values(entries)
+        .filter(e => isStatBuff(e.effects))
+        .sort((a, b) => a.spell_level - b.spell_level || a.name.localeCompare(b.name)),
+    ])
+    .filter(([, spells]) => spells.length)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  return { consumables, buffSpells };
+}
+
+// ── Automation string parser ──────────────────────────────────────────────────
+// Parses FG [KEYWORD data][KEYWORD data]... strings for human-readable display.
+// Pure display — no stat modification.
+
+const AUTO_SCOPE_LABEL = {
+  char:  'Always active',
+  item:  'While in possession',
+  equip: 'While worn/equipped',
+  carry: 'While carried',
+  use:   'When used (weapon)',
+};
+
+const AUTO_PROF_RANK = {
+  untrained:'Untrained', trained:'Trained', expert:'Expert',
+  master:'Master', legendary:'Legendary',
+};
+
+const AUTO_SAVE_KEYS = new Set(['fortitude', 'reflex', 'will']);
+
+// ── Spell action decoder ──────────────────────────────────────────────────────
+// Reads the <actions> list on a spell XML node and returns display HTML covering:
+//   type:cast    → save type + whether it's a basic save
+//   type:damage  → damage dice + type per resultstate
+//   type:effect  → buff effect labels, deduped, run through prettifyEffects
+function parseSpellActions(sp, spellName) {
+  const actNodes = children(sp, 'actions');
+  if (!actNodes.length) return '';
+
+  // Normalise the spell name so we can strip it from effect labels
+  const norm = spellName.replace(/^\([A-Za-z]\)\s*/, '').replace(/\*+$/, '').trim().toLowerCase();
+  function stripPrefix(label) {
+    const prefixRe = new RegExp('^' + norm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[;:,]\\s*', 'i');
+    return label.replace(prefixRe, '').trim();
+  }
+
+  const RESULT_LABEL = {
+    critsuccess: 'Crit success', success: 'Success',
+    failure: 'Failure', critfailure: 'Crit fail', all: null,
+  };
+  const SAVE_CAP = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
+  const castLines   = [];
+  const damageLines = [];
+  const effectSet   = new Set();   // deduped effect labels
+
+  for (const act of actNodes) {
+    const type = txt(act, 'type');
+
+    if (type === 'cast') {
+      const savetype = txt(act, 'savetype');
+      const onmiss   = txt(act, 'onmissdamage');
+      if (savetype) {
+        const basic = onmiss === 'half'
+          ? ' <em>(basic — no dmg crit success, half success, full failure, dbl crit fail)</em>'
+          : '';
+        castLines.push(`<b>Save:</b> ${escHtml(SAVE_CAP(savetype))}${basic}`);
+      }
+    }
+
+    else if (type === 'damage') {
+      const rs = txt(act, 'resultstate');
+      const rsLabel = RESULT_LABEL[rs] ?? (rs || null);
+      const rsSuffix = rsLabel ? ` <em>(${escHtml(rsLabel)})</em>` : '';
+      for (const dl of children(act, 'damagelist')) {
+        let dice = txt(dl, 'dice');
+        if (dice && dice.startsWith('d')) dice = '1' + dice;
+        if (!dice) continue;
+        const bonus    = num(dl, 'bonus');
+        const dicestat = txt(dl, 'dicestat');   // 'sl' = multiplied by spell rank
+        const dmgType  = txt(dl, 'type');
+        const disp = dice + (bonus > 0 ? `+${bonus}` : bonus < 0 ? `${bonus}` : '');
+        const scaleNote = dicestat === 'sl' ? ' ×rank' : '';
+        damageLines.push(`${escHtml(disp)}${escHtml(scaleNote)} ${escHtml(dmgType)}${rsSuffix}`);
+      }
+    }
+
+    else if (type === 'effect') {
+      const label = txt(act, 'label').trim();
+      if (label) effectSet.add(stripPrefix(label));
+    }
+  }
+
+  const parts = [];
+  for (const line of castLines)   parts.push(`<div>${line}</div>`);
+  if (damageLines.length)
+    parts.push(`<div><b>Damage:</b> ${damageLines.join(', ')}</div>`);
+  if (effectSet.size) {
+    const lis = [...effectSet].map(l => `<li>${prettifyEffects(l)}</li>`).join('');
+    parts.push(`<div><b>Effects on cast:</b><ul>${lis}</ul></div>`);
+  }
+
+  return parts.length ? `<div class="gp-spell-auto">${parts.join('')}</div>` : '';
+}
+
+function parseAutomation(str) {
+  if (!str) return [];
+  str = str.trim();
+  if (str.startsWith('[')) str = str.slice(1);
+  if (str.endsWith(']'))   str = str.slice(0, -1);
+  return str.split(/\]\[/).map(s => s.trim()).filter(Boolean);
+}
+
+// Returns safe display HTML for one automation entry (brackets already stripped).
+// Returns null to suppress display-only / UI-only entries.
+function autoEntryHtml(entry) {
+  const spIdx   = entry.indexOf(' ');
+  const keyword = (spIdx >= 0 ? entry.slice(0, spIdx) : entry).toUpperCase();
+  const data    = spIdx >= 0 ? entry.slice(spIdx + 1).trim() : '';
+
+  // Default keyword handler: save proficiency (fortitude/reflex/will <rank>)
+  if (AUTO_SAVE_KEYS.has(keyword.toLowerCase())) {
+    const rank = AUTO_PROF_RANK[data.toLowerCase()] ?? data;
+    return `Sets ${titleCase(keyword.toLowerCase())} save → <b>${escHtml(rank)}</b>`;
+  }
+
+  switch (keyword) {
+
+    case 'EFFECT': {
+      const parts = data.split(/\s+/);
+      const scope = parts[0]?.toLowerCase() ?? 'char';
+      let rest = parts.slice(1).join(' ').trim();
+      if (rest.toUpperCase().startsWith('OFF '))          rest = rest.slice(4).trim();
+      if (rest.toLowerCase().startsWith('onceperround ')) rest = rest.slice(13).trim();
+      if (rest.toLowerCase().startsWith('twiceperround ')) rest = rest.slice(14).trim();
+      const label = AUTO_SCOPE_LABEL[scope] ?? titleCase(scope);
+      return `<b>${escHtml(label)}:</b> ${escHtml(prettifyEffects(rest))}`;
+    }
+
+    case 'SPEED': {
+      const v = /^[+-]/.test(data) ? data : '+' + data;
+      return `Speed ${escHtml(v)} ft`;
+    }
+
+    case 'HP': {
+      const m = data.match(/^(\w+)\s+([+-]?\d+)/);
+      if (!m) return `HP: ${escHtml(data)}`;
+      const [, field, val] = m;
+      const vn = /^[+-]/.test(val) ? val : '+' + val;
+      if (field.toLowerCase() === 'miscperlevel') return `${vn} HP per level`;
+      if (field.toLowerCase() === 'ancestry')     return `Ancestry HP: ${vn}`;
+      return `HP ${escHtml(field)}: ${vn}`;
+    }
+
+    case 'SENSES':
+      return `Grants sense: ${escHtml(data)}`;
+
+    case 'MOVEMENT': {
+      const [type, speed, ...extra] = data.split(/\s+/);
+      let s = `${titleCase(type || '')} ${speed || ''} ft`.trim();
+      if (extra.length) s += ` (${escHtml(extra.join(' '))})`;
+      return s;
+    }
+
+    case 'SKILL': {
+      // [SKILL perception expert]  — sets proficiency, not an effect bonus
+      const parts = data.split(/\s+/);
+      const rank  = AUTO_PROF_RANK[parts.at(-1)?.toLowerCase()] ?? parts.at(-1) ?? '';
+      const skill = titleCase(parts.slice(0, -1).join(' '));
+      return `Sets ${escHtml(skill)} → <b>${escHtml(rank)}</b>`;
+    }
+
+    case 'DEFENSE': {
+      const parts = data.split(/\s+/);
+      const rank  = AUTO_PROF_RANK[parts.at(-1)?.toLowerCase()] ?? parts.at(-1) ?? '';
+      const type  = titleCase(parts.slice(0, -1).join(' '));
+      return `Sets ${escHtml(type)} defense → <b>${escHtml(rank)}</b>`;
+    }
+
+    case 'ATTACK': {
+      // [ATTACK category|simple weapons|expert]
+      const parts = data.split('|');
+      const rank  = AUTO_PROF_RANK[parts.at(-1)?.trim().toLowerCase()] ?? parts.at(-1)?.trim() ?? '';
+      const name  = titleCase((parts[1] || parts[0] || '').trim());
+      return `Sets ${escHtml(name)} attacks → <b>${escHtml(rank)}</b>`;
+    }
+
+    case 'PROF': {
+      // [PROF SKILL warfare lore trained]
+      const parts = data.split(/\s+/);
+      const rank  = AUTO_PROF_RANK[parts.at(-1)?.toLowerCase()] ?? parts.at(-1) ?? '';
+      const type  = parts[0]?.toUpperCase() ?? '';
+      const name  = titleCase(parts.slice(1, -1).join(' '));
+      return `Sets ${escHtml(name)} (${escHtml(type)}) → <b>${escHtml(rank)}</b>`;
+    }
+
+    case 'SPELLCLASS': {
+      // [SPELLCLASS add spontaneous|Sorcerer|arcane|charisma]
+      const m = data.match(/^add\s+(\w+)\|([^|]+)\|(\w+)\|(\w+)/i);
+      if (!m) return `Spell class: ${escHtml(data)}`;
+      return `Adds ${escHtml(m[2])} (${escHtml(m[1])} · ${escHtml(m[3])} · ${escHtml(m[4])})`;
+    }
+
+    case 'SPELLCLASSPROF': {
+      // [SPELLCLASSPROF satk|arcane|expert]
+      const parts = data.split('|');
+      const what  = parts[0] === 'satk' ? 'spell attack' : parts[0] === 'sdc' ? 'spell DC' : parts[0] === 'cdc' ? 'class DC' : escHtml(parts[0] ?? '');
+      const trad  = escHtml(parts[1] ?? '');
+      const rank  = AUTO_PROF_RANK[parts[2]?.toLowerCase()] ?? parts[2] ?? '';
+      return `Sets ${trad} ${what} → <b>${escHtml(rank)}</b>`;
+    }
+
+    case 'SPELL': {
+      // Format: add <name>|<class>|<slot> (or bare <name>|<class>|<slot> in older data)
+      const m = data.match(/^add\s+(.+)/i);
+      const name = (m ? m[1] : data).split('|')[0].trim();
+      return `Grants spell: ${escHtml(name)}`;
+    }
+
+    case 'FEAT': {
+      // Format: add <name>|<multiple>|<trait>
+      const m = data.match(/^add\s+(.+)/i);
+      const name = m ? m[1].split('|')[0].trim() : data;
+      return `Grants feat: ${escHtml(name)}`;
+    }
+
+    case 'WEAPON': {
+      // Full-entry key: [weapon proficiency]
+      if (data.toLowerCase() === 'proficiency') return 'Upgrades weapon proficiency';
+      // [WEAPON add Fist|Unarmed attack|Brawling|...]
+      const m = data.match(/^add\s+([^|]+)/i);
+      return `Adds weapon: ${escHtml(m ? m[1].trim() : data)}`;
+    }
+
+    case 'ARMOR':
+      // Full-entry key: [armor proficiency]
+      if (data.toLowerCase() === 'proficiency') return 'Upgrades armor proficiency';
+      return `<code>${escHtml(entry)}</code>`;
+
+    case 'DIVINE':
+      // Full-entry key: [divine font]
+      if (data.toLowerCase() === 'font') return 'Sets Divine Font';
+      return `<code>${escHtml(entry)}</code>`;
+
+    case 'DIVINEFONT':
+      return 'Sets Divine Font';
+
+    case 'TRAIT':
+      if (data.toLowerCase().startsWith('remove '))
+        return `Removes trait: ${escHtml(data.slice(7))}`;
+      return `Grants trait: ${escHtml(data)}`;
+
+    case 'REPLACE':
+      return `Replaces: ${escHtml(data)}`;
+
+    case 'DELETE':
+      // Deletes the enclosing item (kit expansion cleanup) — suppress
+      return null;
+
+    case 'ITEM': {
+      const m = data.match(/^add\s+([^|]+)(?:\|(\d+))?(?:\|([^|]*))?/i);
+      if (!m) return `Adds item: ${escHtml(data)}`;
+      let s = `Adds item: ${escHtml(m[1].trim())}`;
+      const qty = m[2] ? parseInt(m[2], 10) : 1;
+      if (qty > 1) s += ` ×${qty}`;
+      const loc = m[3]?.trim();
+      if (loc) s += ` (in ${escHtml(loc)})`;
+      return s;
+    }
+
+    case 'SPELLSLOT': {
+      const m = data.match(/^add\s+([^|]+)\|([^|]+)/i);
+      if (!m) return `Spell slot: ${escHtml(data)}`;
+      const cls      = titleCase(m[1].trim());
+      const slotData = m[2].trim().split(':');
+      const rankRaw  = slotData[0]?.toUpperCase();
+      const rank     = rankRaw === 'C' ? 'cantrip' : `rank ${rankRaw}`;
+      const n        = slotData[1] ?? '1';
+      return `Adds ${n} ${rank} slot(s) to ${escHtml(cls)}`;
+    }
+
+    case 'ACTIVITY': {
+      const m = data.match(/^add\s+(.+)/i);
+      return `Adds activity: ${escHtml(m ? m[1].trim() : data)}`;
+    }
+
+    case 'TACTICS': {
+      const m = data.match(/^(add|modify)\s+(\d+)\|(\d+)/i);
+      if (!m) return `Tactics: ${escHtml(data)}`;
+      const action = m[1].toLowerCase() === 'modify' ? 'Modifies' : 'Sets up';
+      return `${action} Tactics Folio (learn ${m[2]}, prepare ${m[3]})`;
+    }
+
+    case 'EIDOLON': {
+      const m = data.match(/^add\s+(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)/i);
+      if (!m) return 'Creates Eidolon';
+      return `Creates Eidolon (STR ${m[1]}, DEX ${m[2]}, CON ${m[3]}, INT ${m[4]}, WIS ${m[5]}, CHA ${m[6]})`;
+    }
+
+    case 'SPEEDBASE': {
+      const v = /^[+-]/.test(data) ? data : '+' + data;
+      return `Base speed ${escHtml(v)} ft`;
+    }
+
+    case 'SPEEDMISC': {
+      const v = /^[+-]/.test(data) ? data : '+' + data;
+      return `Speed bonus ${escHtml(v)} ft`;
+    }
+
+    case 'BULK': {
+      const v = /^[+-]/.test(data) ? data : '+' + data;
+      return `Bulk capacity ${escHtml(v)}`;
+    }
+
+    case 'SIZE':
+      return data ? `Sets size: ${escHtml(titleCase(data))}` : null;
+
+    // UI-only / chargen-only — nothing meaningful to display here
+    case 'NONE':
+    case 'MESSAGE':
+    case 'XREF':
+    case 'CHOICE':
+    case 'OPTIONS':
+    case 'SELECT':
+    case 'EDICT':
+    case 'ANATHEMA':
+      return null;
+
+    default:
+      return `<code>${escHtml(entry)}</code>`;
+  }
+}
+
+// Convert a full automation string to an HTML list for glossary display.
+function automationToHtml(str) {
+  if (!str) return '';
+  const items = parseAutomation(str)
+    .map(entry => autoEntryHtml(entry))
+    .filter(html => html !== null);
+  if (!items.length) return '';
+  return '<ul class="gp-auto-list">' + items.map(h => `<li>${h}</li>`).join('') + '</ul>';
+}
+
+// Confirmed FG automation syntaxes (verified from real XML):
+//   SKILL: +N type, name  — Choker of Elocution
+//   SAVE:  +N item        — Greater Resilient armor
+//   [SPEED +N]            — Monk Incredible Movement (standalone, not inside EFFECT)
+// AC: bonus syntax not yet confirmed from a real item automation.
+
+function checkMissingAutomation(inventory) {
+  return inventory.flatMap(item => {
+    if (item.automation) return [];
+    if (!item.bonuses.length) return [];
+    if (item.bonuses.some(b => b.includes(':'))) return [];
+
+    let hasUnverified = false;
+    const bits = item.bonuses.flatMap(bonus => {
+      let m = bonus.match(/^\+(\d+) ft Speed$/);
+      if (m) return [`[SPEED +${m[1]}]`];  // confirmed standalone syntax
+      m = bonus.match(/^\+(\d+) (.+)$/);
+      if (m) {
+        const val = m[1], skill = m[2].toLowerCase();
+        if (skill === 'saving throws' || skill === 'saving throw')
+          return [`[EFFECT equip SAVE: +${val} item]`];  // confirmed
+        if (skill === 'ac') {
+          hasUnverified = true;
+          return [`[EFFECT equip AC: +${val} item]`];    // unconfirmed
+        }
+        return [`[EFFECT equip SKILL: +${val} item, ${skill}]`];
+      }
+      return [];
+    });
+
+    if (!bits.length) return [];
+    const automation = bits.join('');
+    const note = hasUnverified ? ' *(AC bonus syntax unconfirmed — verify before use)*' : '';
+    return [`  💡 **${item.name}** has no FG automation. Suggested: \`${automation}\`${note}`];
+  });
+}
+
+function normNameForms(name) {
+  const key      = name.replace(/^\([A-Z]\)\s*/, '').replace(/\*+$/, '').trim().toLowerCase();
+  const noParen  = key.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
+  const squash   = key.replace(/[^a-z0-9]+/g, '');
+  const squashNp = noParen.replace(/[^a-z0-9]+/g, '');
+  return [key, noParen, squash, squashNp].filter(Boolean);
+}
+
+function checkEffectSourceNames(char, effects) {
+  const known = new Set();
+  const addKnown = name => { if (name) for (const f of normNameForms(name)) known.add(f); };
+  for (const f of children(char, 'featlist'))            addKnown(txt(f, 'name'));
+  for (const it of children(char, 'inventorylist'))      addKnown(txt(it, 'name'));
+  for (const sa of children(char, 'specialabilitylist')) addKnown(txt(sa, 'name'));
+  for (const sc of children(char, 'spellset'))
+    for (const lv of children(sc, 'levels'))
+      for (const sp of children(lv, 'spells')) addKnown(txt(sp, 'name'));
+  for (const grp of children(char, 'activityset')) {
+    const secs = findPath(grp, 'sections');
+    if (!secs) continue;
+    for (const sec of Array.from(secs.children)) {
+      const acts = findPath(sec, 'activities');
+      if (acts) for (const a of Array.from(acts.children)) addKnown(txt(a, 'name'));
+    }
+  }
+
+  const issues = [], seen = new Set();
+  for (const e of effects) {
+    if (!e.isactive) continue;
+    const name = (e.name || '').trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    if (normNameForms(name).some(f => known.has(f))) continue;   // resolves fine
+    const lead = (e.label || '').split(';')[0].trim();
+    if (lead && !/[A-Z]{3,}:/.test(lead) && normNameForms(lead).some(f => known.has(f))) {
+      issues.push(
+        `  ⚠ Active effect **${name}** matches no feat, item, or spell, but its label ` +
+        `references **${lead}** — likely a typo; rename the effect to match its source.`
+      );
+    }
+  }
+  return issues;
+}
+
+// Catch worn items whose *description-scraped* bonuses target the same stat
+// (e.g. Armbands of Athleticism + Lifting Belt both boosting Athletics) —
+// checkItemBonusStacking only sees tracked <effects>, which such items lack.
+function checkPassiveBonusStacking(inventory) {
+  const byTarget = {};   // target -> [{item, val}]
+  for (const item of inventory) {
+    if (item.carried_raw !== '2') continue;
+    for (const b of item.bonuses) {
+      const m = b.match(/^\+(\d+)\s+(.+)$/);
+      if (!m) continue;
+      const target = m[2].replace(/^ft\s+/i, '').trim().toLowerCase();
+      (byTarget[target] ??= []).push({ name: item.name, val: parseInt(m[1], 10) });
+    }
+  }
+  return Object.entries(byTarget).flatMap(([target, sources]) => {
+    if (sources.length <= 1 || target === 'speed') return [];
+    const details = sources.map(s => `'${s.name}' (+${s.val})`).join(', ');
+    return [`  ⚠ **${titleCase(target)}**: multiple worn items grant an item bonus (only the highest applies in PF2e): ${details}`];
+  });
+}
+
+// Signature-spell bookkeeping check for spontaneous casters.
+// PF2e rules (Archives of Nethys): Sorcerer, Bard, Oracle and Psychic choose
+// ONE signature spell per spell rank of their class repertoire, castable at
+// any rank they have slots for. Spellcasting archetypes with a repertoire get
+// only 1/2/3 signature spells total (Basic/Expert/Master Spellcasting at
+// levels 6/12/18), so the per-rank rule is applied only to spellsets matching
+// one of the character's own classes. Since FG has no signature automation,
+// players keep manual heightened copies — detected here as contiguous clone
+// runs (see dedupeSignatureClones), independent of any naming markers.
+const SIG_SPELL_CLASSES = ['sorcerer', 'bard', 'oracle', 'psychic'];
+
+function checkSignatureSpells(char, spellsets) {
+  const classNames = children(char, 'classes').map(c => txt(c, 'name').toLowerCase());
+  const issues = [];
+  for (const ss of spellsets) {
+    const info = ss.sigInfo;
+    if (!info || info.maxRank < 1) continue;
+    const lbl = ss.label.toLowerCase();
+    const sigClass = SIG_SPELL_CLASSES.find(c => lbl.includes(c));
+    if (!sigClass) continue;
+    const isClassSet = classNames.some(c => c.includes(sigClass));
+    const runs = info.groups.filter(g => g.isRun);
+
+    // 1. Duplicate entries at the same rank ("two at the same level")
+    for (const g of info.groups) {
+      const counts = {};
+      for (const b of g.buckets) counts[b] = (counts[b] ?? 0) + 1;
+      for (const [b, n] of Object.entries(counts))
+        if (n > 1) issues.push(`  ⚠ **${ss.label}**: '${g.name}' is listed ${n}× at rank ${b} — duplicate entry.`);
+    }
+
+    // 2. Gaps in a signature clone run (copies missing at castable ranks)
+    for (const g of runs) {
+      const have = new Set(g.buckets);
+      const from = g.baseRank ?? g.buckets[0];
+      const missing = [];
+      for (let r = from; r <= info.maxRank; r++) if (!have.has(r)) missing.push(r);
+      if (missing.length)
+        issues.push(
+          `  ⚠ **${ss.label}**: '${g.name}' (base rank ${from}) has heightened copies at ` +
+          `ranks ${g.buckets[0]}–${g.buckets.at(-1)} but is missing at rank${missing.length > 1 ? 's' : ''} ` +
+          `${missing.join(', ')} — a signature spell should have a copy at every castable rank.`
+        );
+    }
+
+    // 3. Exactly one signature spell per rank — only for the character's own class
+    if (isClassSet) {
+      const byRank = {};
+      for (const g of runs) {
+        const r = g.baseRank ?? g.buckets[0];
+        (byRank[r] ??= []).push(g.name);
+      }
+      const zero = [];
+      for (let r = 1; r < info.maxRank; r++) {
+        const names = byRank[r] ?? [];
+        if (names.length === 0) zero.push(r);
+        else if (names.length > 1)
+          issues.push(`  ⚠ **${ss.label}**: ${names.length} signature spells detected at rank ${r} (${names.join(', ')}) — only one is allowed per rank.`);
+      }
+      if (zero.length)
+        issues.push(
+          `  ⚠ **${ss.label}**: no signature spell detected at rank${zero.length > 1 ? 's' : ''} ${zero.join(', ')} — ` +
+          `${titleCase(sigClass)}s choose one signature spell per rank. ` +
+          `(Detected via manual heightened copies at consecutive ranks; rank ${info.maxRank} can't be verified this way since a top-rank signature spell needs no copies.)`
+        );
+    }
+  }
+  return issues;
+}
+
+function runConsistencyChecks(char, skills, effects, abilities, inventory, spellsets = []) {
+  const encNode         = char.querySelector(':scope > encumbrance') ?? findPath(char, 'encumbrance');
+  const armorPenalty    = encNode ? num(encNode, 'armorcheckpenalty') : 0;
+  return [
+    ['Skill total mismatches',                                        checkSkillTotals(skills, armorPenalty)],
+    ['Hardcoded misc bonuses (not effect-linked)',                     checkMiscVsEffects(skills, effects)],
+    ['Non-stacking item bonuses on the same skill',                    checkItemBonusStacking(effects)],
+    ['Non-stacking item bonuses among worn items (from descriptions)', checkPassiveBonusStacking(inventory)],
+    ['Active effects from stowed items',                               checkStowedEffects(char)],
+    ['Effect name mismatches (possible typos)',                        checkEffectSourceNames(char, effects)],
+    ['HP total',                                                       checkHp(char, abilities)],
+    ['Armor check penalty',                                            checkArmorCheckPenalty(char, skills)],
+    ['Missing FG automation (passive bonuses not tracked as effects)', checkMissingAutomation(inventory)],
+    ['Signature spells (spontaneous casters)',                         checkSignatureSpells(char, spellsets)],
+  ].filter(([, issues]) => issues.length);
+}
+
+// ══ Markdown helpers ══════════════════════════════════════════════════════════
+
+function sign(n) { return n >= 0 ? `+${n}` : `${n}`; }
+
+function titleCase(s) { return s.replace(/\b\w/g, c => c.toUpperCase()); }
+
+function mdTable(headers, rows, align = []) {
+  const colW = headers.map((h, i) =>
+    Math.max(String(h).length, ...rows.map(r => String(r[i] ?? '').length))
+  );
+  const fmt = cells =>
+    '| ' + cells.map((c, i) => {
+      const s = String(c ?? '');
+      return (align[i] === 'r') ? s.padStart(colW[i]) : s.padEnd(colW[i]);
+    }).join(' | ') + ' |';
+  const sep = () =>
+    '| ' + colW.map((w, i) => {
+      const d = '-'.repeat(Math.max(3, w));
+      return align[i] === 'r' ? d.slice(0, -1) + ':' : d;
+    }).join(' | ') + ' |';
+  return [fmt(headers), sep(), ...rows.map(fmt)].join('\n');
+}
+
+// ══ Sheet renderer ════════════════════════════════════════════════════════════
+
+// Normalize FG save strings: "basic Reflex", "Reflex (see text)", "Will" →
+// canonical save name for filtering plus display HTML with a "basic" marker.
+function normSave(save) {
+  const s = (save || '').trim();
+  if (!s || s === '—') return { norm: '', html: '—' };
+  const isBasic = /^basic\s+/i.test(s);
+  const m = s.match(/\b(fortitude|reflex|will|ac)\b/i);
+  const norm = m ? m[1].toLowerCase() : s.toLowerCase();
+  const label = m ? cap(m[1].toLowerCase()) : escHtml(s);
+  const seeText = /\(see text\)/i.test(s) ? '<span class="sp-save-basic">see text</span>' : '';
+  return {
+    norm,
+    html: `${label}${isBasic ? '<span class="sp-save-basic">basic</span>' : ''}${seeText}`,
+  };
+}
+
+// Colored trait chips for spell rows (skip CANTRIP — redundant with the rank group)
+const CHIP_COLORED = new Set(['fire','cold','electricity','acid','poison','mental','emotion','fear','healing','vitality','illusion']);
+function traitChips(traits, max = 4) {
+  const list = (traits || '').split(',').map(t => t.trim().toLowerCase())
+    .filter(t => t && t !== 'cantrip');
+  if (!list.length) return '—';
+  const shown = list.slice(0, max).map(t => {
+    const cls = CHIP_COLORED.has(t) ? ` tc-${t}` : '';
+    return `<span class="trait-chip${cls}">${escHtml(t)}</span>`;
+  });
+  if (list.length > max)
+    shown.push(`<span class="trait-chip" title="${escHtml(list.slice(max).join(', '))}">+${list.length - max}</span>`);
+  return shown.join('');
+}
+
+function render(char) {
+  const basic    = parseBasic(char);
+  const abilities= parseAbilities(char);
+  const defenses = parseDefenses(char);
+  const skills   = parseSkills(char);
+  const effects        = parseEffects(char);
+  const bloodlineSkills = parseBloodlineSkills(char);
+  const inventory      = parseInventory(char, bloodlineSkills);
+  const feats    = parseFeats(char);
+  const spellsets= parseSpellsets(char);
+  const languages= parseLanguages(char);
+  const coins    = parseCoins(char);
+  const specAbs  = parseSpecialAbilities(char);
+  const profs    = parseProficiencies(char);
+  const { consumables, buffSpells } = parseTemporaryEffects(char);
+
+  const out = [];
+
+  // ── header ─────────────────────────────────────────────────────────────────
+  out.push(`# ${basic.name} — Character Sheet`);
+  out.push(`**Level ${basic.level} ${basic.race} ${basic.class}**`);
+  if (basic.background) out.push(`**Background:** ${basic.background}`);
+  if (basic.traits)     out.push(`**Traits:** ${basic.traits}`);
+  out.push(`**Size:** ${basic.size} | **Speed:** ${basic.speed} ft`);
+  out.push('', '---', '');
+
+  // ── abilities ──────────────────────────────────────────────────────────────
+  out.push('## Ability Scores', '');
+  out.push(mdTable(
+    ['Ability', 'Score', 'Modifier'],
+    Object.entries(abilities).map(([ab, d]) => [titleCase(ab), d.score, sign(d.bonus)]),
+    ['l', 'r', 'r']
+  ));
+  out.push('', '---', '');
+
+  // ── defenses ───────────────────────────────────────────────────────────────
+  out.push('## Defenses', '');
+  const sv = defenses.saves;
+  const statCard = (label, val, sub, cls) =>
+    `<div class="stat-card${cls ? ' ' + cls : ''}"><div class="sc-label">${escHtml(label)}</div>` +
+    `<div class="sc-val">${escHtml(String(val))}</div>` +
+    (sub ? `<div class="sc-sub">${escHtml(sub)}</div>` : '') + '</div>';
+  out.push(
+    '<div class="stat-cards">' +
+    statCard('AC', defenses.ac, '', 'sc-ac') +
+    statCard('HP', `${defenses.hp_current}/${defenses.hp_total}`, `die at dying ${defenses.dying_at}`, 'sc-hp') +
+    statCard('Fortitude', sign(sv.fortitude?.total ?? 0), PROF_LABEL[sv.fortitude?.proflevel] ?? '', 'sc-save') +
+    statCard('Reflex',    sign(sv.reflex?.total    ?? 0), PROF_LABEL[sv.reflex?.proflevel]    ?? '', 'sc-save') +
+    statCard('Will',      sign(sv.will?.total      ?? 0), PROF_LABEL[sv.will?.proflevel]      ?? '', 'sc-save') +
+    statCard('Initiative', sign(defenses.init_perc), `Stealth ${sign(defenses.init_stealth)}`, '') +
+    '</div>'
+  );
+  out.push('');
+
+  // active effects list
+  const seenEffs = new Set();
+  const activeEffs = effects.filter(e => {
+    if (!e.isactive) return false;
+    const key = `${e.name || e.label}|${e.label}`;
+    if (seenEffs.has(key)) return false;
+    seenEffs.add(key);
+    return true;
+  });
+  if (activeEffs.length) {
+    out.push('**Active Effects** *(currently applied to rolls)*:', '');
+    out.push(mdTable(
+      ['Source', 'Effect'],
+      // '|' would break the markdown table row
+      activeEffs.map(e => [
+        (e.name || e.label).replace(/\|/g, '·'),
+        prettifyEffects(e.label).replace(/\s*\|\s*/g, ' · '),
+      ]),
+      ['l', 'l']
+    ));
+  }
+  out.push('', '---', '');
+
+  // ── weapons ──────────────────────────────────────────────────────────────────
+  const weapons = parseWeapons(char, abilities);
+  if (weapons.length) {
+    out.push('## Weapons', '');
+    out.push(mdTable(
+      ['Weapon', 'Attack', 'Damage', 'Traits / Notes'],
+      weapons.map(w => {
+        const atk = w.attacks.map(a => typeof a === 'number' ? sign(a) : a).join(' / ');
+        let notes = w.traits;
+        if (w.isRanged && w.range) notes = (notes ? `${notes}; ` : '') + `Range ${w.range} ft.`;
+        return [w.name, atk || '—', w.damage, notes || '—'];
+      }),
+      ['l', 'l', 'l', 'l']
+    ));
+    out.push('', '---', '');
+  }
+
+  // ── skills ─────────────────────────────────────────────────────────────────
+  out.push('## Skills', '');
+
+  const encNode = findPath(char, 'encumbrance');
+  const armorCheckPenalty = encNode ? num(encNode, 'armorcheckpenalty') : 0;
+  if (armorCheckPenalty < 0) {
+    const penalizedNames = skills.filter(s => s.armorPenalized).map(s => s.name);
+    out.push(
+      `> ⚠ **Armor check penalty: ${armorCheckPenalty}** applies to ` +
+      `${penalizedNames.join(', ')}. Totals already reflect this penalty.`,
+      ''
+    );
+  }
+
+  const hasUntrainedImprov = feats.some(f => f.name === 'Untrained Improvisation');
+  const skillEffs = parseSkillEffects(effects);
+
+  // Detect effect-based Untrained Improvisation.
+  // Two forms depending on how the effect was added:
+  //   Automation-applied: label is a baked number  ("SKILL: +7 untyped, untrained")
+  //   Manually typed:     template is a raw template ("SKILL: +{HLVL} untyped, untrained"),
+  //                       label is the live computed value from calculated_effect.
+  // Check both label and template for SKILL:...untrained.
+  const uiEffect = hasUntrainedImprov
+    ? (effects.find(e => {
+        if (!e.isactive) return false;
+        const check = e.template || e.label;
+        return /\bSKILL\s*:/i.test(check) && /\buntrained\b/i.test(check);
+      }) ?? null)
+    : null;
+  // Correct expected bonus: floor(level/2) for levels 1-6, full level for 7+
+  const uiExpectedBonus = basic.level >= 7 ? basic.level : Math.floor(basic.level / 2);
+
+  const uiNote = hasUntrainedImprov
+    ? (uiEffect
+        ? ' **Untrained Improvisation** active via effect (applies automatically to untrained skill rolls).'
+        : ' **Untrained Improvisation** active — misc bonus on untrained skills represents level proficiency.')
+    : '';
+  out.push(`*Base = proficiency bonus + ability modifier. ⚠ = misc not linked to a tracked effect (hardcoded in FG).${uiNote}*`, '');
+  function miscAnnotation(s) {
+    if (s.misc === 0) return '—';
+    const targets = new Set([s.label.toLowerCase(), (s.sublabel||'').toLowerCase(), 'all'].filter(Boolean));
+    let tracked = 0;
+    const names = [];
+    for (const t of targets) {
+      for (const [b, , n] of skillEffs[t] ?? []) {
+        tracked += b;
+        if (n) names.push(n);
+      }
+    }
+    const unique = [...new Set(names)];
+    const unaccounted = s.misc - tracked;
+    // Manual Untrained Improvisation fallback: misc set directly on each untrained skill
+    // (only reached when no SKILL:...untrained effect is found above)
+    if (hasUntrainedImprov && s.proflevel === 'untrained' && unaccounted > 0) {
+      const allNames = [...unique, 'Untrained Improvisation'];
+      return `${sign(s.misc)} (${allNames.join(', ')})`;
+    }
+    if (unaccounted <= 0) return unique.length ? `${sign(s.misc)} (${unique.join(', ')})` : sign(s.misc);
+    if (tracked > 0)      return `${sign(s.misc)} (${unique.join(', ')} + ${sign(unaccounted)} ⚠)`;
+    return `${sign(s.misc)} ⚠`;
+  }
+
+  out.push(mdTable(
+    ['Skill', 'Total', 'Base', 'Misc', 'Proficiency'],
+    [...skills].sort((a,b) => a.name.localeCompare(b.name)).map(s => {
+      const marker = (armorCheckPenalty < 0 && s.armorPenalized) ? ' †' : '';
+      return [
+        `${s.name} (${ABILITY_ABBR[s.statname] ?? '?'})${marker}`,
+        sign(s.total),
+        sign(s.prof + s.stat),
+        miscAnnotation(s),
+        PROF_LABEL[s.proflevel] ?? s.proflevel,
+      ];
+    }),
+    ['l', 'r', 'r', 'l', 'l']
+  ));
+  out.push('', '---', '');
+
+  // ── activities ───────────────────────────────────────────────────────────────
+  const activities = parseActivities(char);
+  const ACT_CATEGORY_ORDER = [
+    // 'Skill Activities' omitted — covered by the per-skill hover popup in the Skills table.
+    ['Exploration Activities', 'Exploration'],
+    ['Encounter Activities',   'Encounter'],
+    ['Downtime Activities',    'Downtime'],
+    // 'Feat Activities' omitted — redundant with the Feats section.
+  ];
+  if (Object.keys(activities).length) {
+    out.push('## Activities', '');
+    for (const [catKey, catLabel] of ACT_CATEGORY_ORDER) {
+      const bucket = activities[catKey];
+      if (!bucket) continue;
+      out.push(`### ${catLabel}`, '');
+      const sections = Object.keys(bucket).filter(Boolean).sort();
+      if (sections.length) {
+        for (const sec of sections) out.push(`**${sec}:** ${bucket[sec].join(', ')}`, '');
+        if (bucket['']) out.push(`**Other:** ${bucket[''].join(', ')}`, '');
+      } else {
+        out.push((bucket[''] || []).join(', '), '');
+      }
+    }
+    out.push('---', '');
+  }
+
+  // ── proficiencies ──────────────────────────────────────────────────────────
+  out.push('## Proficiencies', '');
+  const profRows = [
+    ...profs.attacks.filter(p => p.proflevel !== 'untrained')
+      .map(p => ['Attack',  p.name, PROF_LABEL[p.proflevel] ?? p.proflevel]),
+    ...profs.defenses.filter(p => p.proflevel !== 'untrained')
+      .map(p => ['Defense', p.name, PROF_LABEL[p.proflevel] ?? p.proflevel]),
+  ];
+  if (profRows.length)
+    out.push(mdTable(['Category', 'Type', 'Proficiency'], profRows, ['l', 'l', 'l']));
+  out.push('', '---', '');
+
+  // ── spell statistics ───────────────────────────────────────────────────────
+  if (spellsets.length) {
+    out.push('## Spell Statistics', '');
+    out.push(mdTable(
+      ['Spell Class', 'DC', 'Atk', 'CL'],
+      spellsets.map(ss => [ss.label, sign(ss.dc), sign(ss.atk), String(ss.cl)]),
+      ['l', 'r', 'r', 'r']
+    ));
+    out.push('', '---', '');
+
+    // ── spells ───────────────────────────────────────────────────────────────
+    out.push('## Spells', '');
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    for (const ss of spellsets) {
+      out.push(`### ${ss.label}  —  DC ${ss.dc} / Atk ${sign(ss.atk)}`);
+      const sortedLevels = Object.keys(ss.levels).sort((a, b) =>
+        (/^\d+$/.test(a) ? parseInt(a) : 99) - (/^\d+$/.test(b) ? parseInt(b) : 99)
+      );
+      for (const lk of sortedLevels) {
+        const spells   = ss.levels[lk];
+        const cantrips = spells.filter(sp => sp.is_cantrip).sort(byName);
+        const normals  = spells.filter(sp => !sp.is_cantrip).sort(byName);
+        const rankLabel = (cantrips.length && !normals.length) ? 'Cantrips' : `Rank ${lk}`;
+        const slotCount = ss.slots[String(lk)];
+        const slotStr   = slotCount ? `<span class="sp-slots">· ${slotCount} slot${slotCount > 1 ? 's' : ''}</span>` : '';
+        // Raw HTML so marked.js doesn't interfere; spell names stay as text nodes
+        // so linkifyGlossary() can still convert them to hover anchors.
+        let tbl = `<p class="sp-rank-hdr">${rankLabel} ${slotStr}</p>`;
+        tbl += '<table class="sp-tbl"><colgroup><col class="spc-act"><col class="spc-name"><col class="spc-trait"><col class="spc-range"><col class="spc-dur"><col class="spc-save"></colgroup>' +
+               '<thead><tr><th>Act</th><th>Spell</th><th>Traits</th><th>Range/Area</th><th>Duration</th><th>Save</th></tr></thead><tbody>';
+        for (const sp of [...cantrips, ...normals]) {
+          const badges = [];
+          if (sp.rank_max) badges.push(`<span class="sp-badge rank-range" title="Castable at ranks ${sp.rank_min}–${sp.rank_max}">R${sp.rank_min}–${sp.rank_max}</span>`);
+          if (sp.is_sig) badges.push('<span class="sp-badge sig" title="Signature spell — heightens freely">SIG</span>');
+          if (sp.max_cast > 0) badges.push(`<span class="sp-badge">${sp.cast}/${sp.max_cast}</span>`);
+          const rangeCell = sp.area || sp.range || sp.targets || '—';
+          const trTraits = (sp.traits || '').toLowerCase().replace(/,\s*/g, ',');
+          const saveInfo = normSave(sp.save);
+          const unprep   = ss.isPrepared && sp.has_prep && !sp.prepared && !sp.is_cantrip;
+          tbl += `<tr${unprep ? ' class="sp-unprep"' : ''} data-name="${escHtml(sp.name.toLowerCase())}" ` +
+                 `data-traits="${escHtml(trTraits)}" ` +
+                 `data-save="${escHtml(saveInfo.norm)}" ` +
+                 `data-act="${escHtml(sp.act.key)}" ` +
+                 `data-rank="${escHtml(String(lk))}" ` +
+                 `data-rank-max="${escHtml(String(sp.rank_max ?? lk))}" ` +
+                 `data-desc="${escHtml(sp.desc.toLowerCase())}" ` +
+                 `data-duration="${escHtml((sp.duration || '').toLowerCase())}">` +
+                 `<td class="sp-act-cell">${sp.act.html}</td>` +
+                 `<td>${escHtml(sp.name)}${badges.join('')}</td>` +
+                 `<td>${traitChips(sp.traits)}</td>` +
+                 `<td>${escHtml(rangeCell)}</td>` +
+                 `<td>${escHtml(sp.duration || '—')}</td>` +
+                 `<td>${saveInfo.html}</td></tr>`;
+        }
+        tbl += '</tbody></table>';
+        out.push(tbl);
+      }
+      out.push('');
+    }
+    out.push('---', '');
+  }
+
+  // ── class features ─────────────────────────────────────────────────────────
+  out.push('## Class Features', '');
+  if (specAbs.length)
+    out.push(mdTable(['Level', 'Feature'], specAbs.map(sa => [String(sa.level || '—'), sa.name]), ['r', 'l']));
+  out.push('', '---', '');
+
+  // ── feats ──────────────────────────────────────────────────────────────────
+  out.push('## Feats', '');
+  out.push(mdTable(
+    ['Level', 'Feat', 'Traits'],
+    [...feats].sort((a,b) => a.level - b.level).map(f => [String(f.level), f.name, f.traits]),
+    ['r', 'l', 'l']
+  ));
+  out.push('', '---', '');
+
+  // ── languages ──────────────────────────────────────────────────────────────
+  out.push('## Languages', '');
+  for (const lang of languages) out.push(`- ${lang}`);
+  out.push('', '---', '');
+
+  // ── currency ───────────────────────────────────────────────────────────────
+  out.push('## Currency', '');
+  out.push(mdTable(['Type', 'Amount'], Object.entries(coins).map(([n, a]) => [n, String(a)]), ['l', 'r']));
+  out.push('', '---', '');
+
+  // ── inventory ──────────────────────────────────────────────────────────────
+  // carried_raw: '2'=worn/equipped, '1'=carried on person, '0'=in container/not carried, '3'=not carried
+  // location: free-text note set by the player, used to name the container an item lives in
+  out.push('## Equipment', '');
+
+  const worn        = inventory.filter(i => i.carried_raw === '2');
+  const directCarry = inventory.filter(i => i.carried_raw === '1' && !i.location);
+
+  // ── Invested item count ─────────────────────────────────────────────────────
+  const hasIncredibleInvestiture = feats.some(f => f.name === 'Incredible Investiture');
+  const isInvested = item => /\binvested\b/i.test(item.traits);
+  const investedWorn  = inventory.filter(i => i.carried_raw === '2' && isInvested(i));
+  const investedTotal = inventory.filter(isInvested);
+  const investedCap  = hasIncredibleInvestiture ? 12 : 10;
+  const investedOver = investedWorn.length > investedCap;
+  const wornStr = investedOver
+    ? `<span class="over-cap">${investedWorn.length} / ${investedCap} ⚠</span>`
+    : `${investedWorn.length} / ${investedCap}`;
+  out.push(
+    `**Invested items:** ${wornStr} worn` +
+    (hasIncredibleInvestiture ? ' *(Incredible Investiture)*' : '') +
+    (investedTotal.length !== investedWorn.length ? ` · ${investedTotal.length} total owned` : ''),
+    ''
+  );
+  const inContainer = inventory.filter(i => i.location && i.carried_raw !== '2');
+  const notCarried  = inventory.filter(i => (i.carried_raw === '0' || i.carried_raw === '3') && !i.location);
+
+  // Container sub-groups, sorted case-insensitively
+  const containerGroups = {};
+  for (const item of inContainer) {
+    containerGroups[item.location] ??= [];
+    containerGroups[item.location].push(item);
+  }
+
+  const itemCols   = ['Item', 'Lvl', 'Bulk', 'Type', 'Cost', 'Bonus'];
+  const itemAligns = ['l', 'r', 'r', 'l', 'r', 'l'];
+  const itemRow = item => [
+    (item.count > 1 ? `${item.count}× ` : '') + item.name,
+    item.level || '—',
+    item.bulk  || '—',
+    item.subtype || item.type || '—',
+    item.cost  || '—',
+    item.bonuses.length ? item.bonuses.join(', ') : '—',
+  ];
+
+  if (worn.length) {
+    out.push('### Worn / Equipped', '');
+    out.push(mdTable(itemCols, worn.map(itemRow), itemAligns));
+    out.push('');
+  }
+  if (directCarry.length) {
+    out.push('### Carried', '');
+    out.push(mdTable(itemCols, directCarry.map(itemRow), itemAligns));
+    out.push('');
+  }
+  for (const [container, items] of Object.entries(containerGroups)
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))) {
+    out.push(`### In: ${container}`, '');
+    out.push(mdTable(itemCols, items.map(itemRow), itemAligns));
+    out.push('');
+  }
+  if (notCarried.length) {
+    out.push('### Not Carried', '');
+    out.push(mdTable(itemCols, notCarried.map(itemRow), itemAligns));
+    out.push('');
+  }
+  out.push('---', '');
+
+  // ── notes ──────────────────────────────────────────────────────────────────
+  if (basic.notes.trim()) {
+    out.push('## Notes', '', basic.notes, '', '---', '');
+  }
+
+  // ── temporary effects ──────────────────────────────────────────────────────
+  // With effect-based UI, misc stays 0 on all skills; only check misc-based if no effect found
+  const uiSkills = (hasUntrainedImprov && !uiEffect)
+    ? skills.filter(s => s.proflevel === 'untrained' && s.misc > 0)
+    : [];
+  const showUsefulEffects = consumables.length || buffSpells.length || uiSkills.length || uiEffect;
+
+  if (showUsefulEffects) {
+    out.push('## Buffs & Consumables', '');
+
+    if (uiEffect || uiSkills.length) {
+      out.push('### Passive Feats', '');
+      if (uiEffect) {
+        // If calculated_effect is present (manually-typed effect), label is already the live
+        // computed value. Otherwise fall back to evaluating [HLVL]/{HLVL} from the template.
+        const rawForEval = uiEffect.template || uiEffect.label || '';
+        const hasVars = /[\[{][A-Z]+[\]}]/.test(rawForEval);
+        const evalLabel = hasVars
+          ? rawForEval
+              .replace(/[\[{]HLVL[\]}]/gi, String(Math.floor(basic.level / 2)))
+              .replace(/[\[{]LVL[\]}]/gi,  String(basic.level))
+          : (uiEffect.label || rawForEval);
+        out.push(mdTable(
+          ['Feat', 'Effect'],
+          [['Untrained Improvisation', `Effect active: ${prettifyEffects(evalLabel)}`]],
+          ['l', 'l']
+        ), '');
+      } else {
+        const uiBonus = uiSkills[0].misc;
+        const uiStaleNote = uiBonus !== uiExpectedBonus
+          ? ` *(bonus is ${sign(uiBonus)}, expected ${sign(uiExpectedBonus)} at level ${basic.level} — may need updating)*`
+          : '';
+        out.push(mdTable(
+          ['Feat', 'Effect', 'Affected Skills'],
+          [['Untrained Improvisation',
+            `${sign(uiBonus)} to untrained skill checks${uiStaleNote}`,
+            uiSkills.map(s => s.name).join(', ')]],
+          ['l', 'l', 'l']
+        ), '');
+      }
+    }
+
+    if (consumables.length) {
+      out.push('### Items', '');
+      out.push(mdTable(
+        ['Item', 'Lvl', 'Type', 'Effect', 'Duration'],
+        consumables.map(c => [c.name, c.level, c.subtype, prettifyEffects(c.effects), c.duration]),
+        ['l', 'r', 'l', 'l', 'l']
+      ), '');
+    }
+
+    if (buffSpells.length) {
+      out.push('### Spell Effects', '');
+      for (const [ssLabel, spells] of buffSpells) {
+        out.push(`**${ssLabel}**`, '');
+        out.push(mdTable(
+          ['Spell', 'Lvl', 'Effect', 'Duration'],
+          spells.map(sp => [sp.name, sp.spell_level > 0 ? sp.spell_level : 'C', prettifyEffects(sp.effects), sp.duration]),
+          ['l', 'r', 'l', 'l']
+        ), '');
+      }
+    }
+
+    out.push('---', '');
+  }
+
+  // ── consistency checks ─────────────────────────────────────────────────────
+  out.push('## Data Health', '');
+  const checks = runConsistencyChecks(char, skills, effects, abilities, inventory, spellsets);
+  if (!checks.length) {
+    out.push('✓ No issues found.');
+  } else {
+    for (const [title, issues] of checks) {
+      out.push(`### ${title}`, '');
+      for (const issue of issues) out.push(issue, '');
+    }
+  }
+
+  return out.join('\n');
+}
+
+// ══ Version check ═════════════════════════════════════════════════════════════
+
+function checkFgVersion(root) {
+  const version     = root.getAttribute('version')     ?? '?';
+  const dataversion = root.getAttribute('dataversion') ?? '?';
+  const release     = root.getAttribute('release')     ?? '?';
+  const key = `${version}|${dataversion}|${release}`;
+  const note = KNOWN_VERSIONS.get(key);
+
+  if (note) {
+    return { cls:'ok', msg:`FG version: ${version}  dataversion: ${dataversion}  release: ${release}  [${note}]` };
+  }
+  const knownFmts = new Set([...KNOWN_VERSIONS.keys()].map(k => k.split('|')[0]));
+  if (!knownFmts.has(version)) {
+    return { cls:'warning', msg:`⚠ Unknown FG format version "${version}" (dataversion=${dataversion}, release=${release}). XML structure may have changed — review output carefully.` };
+  }
+  const lastKnown = [...KNOWN_VERSIONS.keys()].at(-1).split('|')[1];
+  return { cls:'warning', msg:`⚠ New FG data snapshot (version=${version}, dataversion=${dataversion}, release=${release}). Script tested against dataversion=${lastKnown}. Check for rule/format changes.` };
+}
+
+// ══ Character header ═════════════════════════════════════════════════════════
+
+function populateCharHeader(char) {
+  const basic = parseBasic(char);
+  const def   = parseDefenses(char);
+  const classesNode = findPath(char, 'classes');
+  const className = classesNode?.children[0] ? txt(classesNode.children[0], 'name') : '';
+
+  document.getElementById('ch-name-label').textContent =
+    `${basic.name}  ·  ${basic.race || ''}  ${className || ''}  ${basic.level ? `lvl ${basic.level}` : ''}`.replace(/\s+/g, ' ').trim();
+
+  const stats = [
+    { label: 'AC',   val: def.ac || '—',          cls: 'ac' },
+    { label: 'HP',   val: `${def.hp_current}/${def.hp_total}`, cls: 'hp' },
+    { label: 'Fort', val: sign(def.saves.fortitude?.total ?? 0), cls: 'save' },
+    { label: 'Ref',  val: sign(def.saves.reflex?.total    ?? 0), cls: 'save' },
+    { label: 'Will', val: sign(def.saves.will?.total      ?? 0), cls: 'save' },
+    { label: 'Per',  val: sign(def.init_perc || 0),              cls: '' },
+    { label: 'Spd',  val: `${basic.speed} ft`,                   cls: '' },
+  ];
+  // If Stealth initiative beats Perception, surface it — Per alone misleads.
+  if ((def.init_stealth ?? 0) > (def.init_perc ?? 0))
+    stats.push({ label: 'Init·Stealth', val: sign(def.init_stealth), cls: '' });
+  const bar = document.getElementById('ch-stats-bar');
+  bar.innerHTML = stats.map(s =>
+    `<div class="ch-stat ${s.cls}"><b>${s.label}</b>${escHtml(String(s.val))}</div>`
+  ).join('');
+  document.getElementById('char-header').style.display = 'flex';
+}
+
+// ══ Table sorting ════════════════════════════════════════════════════════════
+
+function cellSortKey(text, isNumeric) {
+  const t = text.trim();
+  if (t === '' || t === '—') return isNumeric ? -Infinity : '';
+  if (isNumeric) return parseFloat(t.replace(/^\+/, '')) || 0;
+  return t.toLowerCase();
+}
+
+function isNumericColumn(rows, colIndex) {
+  return rows.every(row => {
+    const cell = row.cells[colIndex];
+    const t = cell ? cell.textContent.trim() : '';
+    return t === '' || t === '—' || /^[+\-]?\d+(\.\d+)?$/.test(t);
+  });
+}
+
+function sortTableByColumn(table, colIndex, dir) {
+  const tbody = table.querySelector('tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.rows);
+  const numeric = isNumericColumn(rows, colIndex);
+  rows.sort((a, b) => {
+    const av = cellSortKey(a.cells[colIndex]?.textContent ?? '', numeric);
+    const bv = cellSortKey(b.cells[colIndex]?.textContent ?? '', numeric);
+    if (av < bv) return dir === 'asc' ? -1 : 1;
+    if (av > bv) return dir === 'asc' ?  1 : -1;
+    return 0;
+  });
+  rows.forEach(row => tbody.appendChild(row));
+}
+
+function makeSortable() {
+  document.querySelectorAll('#rendered table').forEach(table => {
+    const ths = table.querySelectorAll('thead th');
+    ths.forEach((th, colIdx) => {
+      th.addEventListener('click', () => {
+        const asc = !th.classList.contains('sort-asc');
+        ths.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+        th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+        sortTableByColumn(table, colIdx, asc ? 'asc' : 'desc');
+      });
+    });
+  });
+}
+
+// ══ Collapsible sections ════════════════════════════════════════════════════════
+// Turn the flat rendered markdown into nested <details> blocks: each ## becomes a
+// collapsible h2 section, each ### a nested collapsible group. Runs LAST so it
+// re-parents the already-linkified DOM (event delegation on #rendered survives).
+function buildSection(headingEl, level, contentNodes) {
+  const det = document.createElement('details');
+  det.open = true;
+  det.className = `sec sec-h${level}`;
+  const sum = document.createElement('summary');
+  sum.textContent = headingEl.textContent;
+  det.appendChild(sum);
+  for (const n of contentNodes) det.appendChild(n);
+  return det;
+}
+
+function wrapByHeading(nodes, tag, level) {
+  const out = [];
+  let i = 0;
+  while (i < nodes.length && !(nodes[i].nodeType === 1 && nodes[i].tagName === tag)) {
+    out.push(nodes[i]); i++;
+  }
+  while (i < nodes.length) {
+    const heading = nodes[i]; i++;
+    const content = [];
+    while (i < nodes.length && !(nodes[i].nodeType === 1 && nodes[i].tagName === tag)) {
+      content.push(nodes[i]); i++;
+    }
+    out.push(buildSection(heading, level, content));
+  }
+  return out;
+}
+
+function makeCollapsible() {
+  const root = document.getElementById('rendered');
+  const kids = Array.from(root.childNodes);
+  const result = [];
+  let i = 0;
+
+  // Leading title block (before first H2) stays as-is; drop separator <hr>s.
+  while (i < kids.length && !(kids[i].nodeType === 1 && kids[i].tagName === 'H2')) {
+    const n = kids[i]; i++;
+    if (n.nodeType === 1 && n.tagName === 'HR') continue;
+    result.push(n);
+  }
+  // Each H2 section → collapsible; nest H3 groups inside.
+  while (i < kids.length) {
+    const h2 = kids[i]; i++;
+    const content = [];
+    while (i < kids.length && !(kids[i].nodeType === 1 && kids[i].tagName === 'H2')) {
+      const n = kids[i]; i++;
+      if (n.nodeType === 1 && n.tagName === 'HR') continue;   // separators no longer needed
+      content.push(n);
+    }
+    result.push(buildSection(h2, 2, wrapByHeading(content, 'H3', 3)));
+  }
+  root.replaceChildren(...result);
+}
+
+function toggleAllSections() {
+  const root = document.getElementById('rendered');
+  const all  = root.querySelectorAll('details.sec');
+  const anyOpen = [...all].some(d => d.open);
+  all.forEach(d => { d.open = !anyOpen; });
+  document.getElementById('btn-collapse').textContent = anyOpen ? 'Expand all' : 'Collapse all';
+}
+
+// Group the top-level ## sections into tabs. Runs after makeCollapsible, so each
+// section is a <details.sec-h2>; we just re-parent them into per-tab panels.
+const TAB_GROUPS = [
+  ['General',          ['ability scores', 'proficiencies', 'languages', 'notes']],
+  ['Combat',           ['defenses', 'weapons']],
+  ['Skills & Actions', ['skills', 'activities']],
+  ['Spells',           ['spell statistics', 'spells']],
+  ['Feats',            ['class features', 'feats']],
+  ['Gear',             ['currency', 'equipment']],
+  ['Buffs & Consumables', ['buffs & consumables']],
+  ['Data Health',      ['data health']],
+];
+
+function makeTabs() {
+  const root = document.getElementById('rendered');
+  const lead = [], sections = [];
+  for (const n of Array.from(root.childNodes)) {
+    if (n.nodeType === 1 && n.tagName === 'DETAILS' && n.classList.contains('sec-h2')) sections.push(n);
+    else lead.push(n);
+  }
+  if (sections.length < 2) return;
+
+  const titleOf = det => (det.querySelector(':scope > summary')?.textContent || '').trim().toLowerCase();
+
+  const assigned = new Set();
+  const tabs = [];
+  for (const [name, titles] of TAB_GROUPS) {
+    const group = [];
+    for (const t of titles) {
+      const sec = sections.find(s => !assigned.has(s) && titleOf(s) === t);
+      if (sec) { group.push(sec); assigned.add(sec); }
+    }
+    if (group.length) tabs.push({ name, sections: group });
+  }
+  const leftover = sections.filter(s => !assigned.has(s));   // any unmapped section
+  if (leftover.length) tabs.push({ name: 'More', sections: leftover });
+  if (tabs.length < 2) return;
+
+  const bar       = document.createElement('div');
+  bar.className   = 'tab-bar';
+  const panelWrap = document.createElement('div');
+  panelWrap.className = 'tab-panels';
+
+  tabs.forEach((tab, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (idx === 0 ? ' active' : '');
+    btn.textContent = tab.name;
+    btn.dataset.tab = String(idx);
+    bar.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.className = 'tab-panel';
+    panel.dataset.tab = String(idx);
+    if (idx !== 0) panel.style.display = 'none';
+    for (const sec of tab.sections) panel.appendChild(sec);
+    panelWrap.appendChild(panel);
+  });
+
+  bar.addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    const idx = btn.dataset.tab;
+    bar.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === idx));
+    if (searchGlobal) {
+      // Global search is active: all panels stay visible; scroll to the chosen section instead.
+      panelWrap.querySelector(`.tab-panel[data-tab="${idx}"]`)
+               ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      panelWrap.querySelectorAll('.tab-panel').forEach(p => { p.style.display = p.dataset.tab === idx ? '' : 'none'; });
+      window.scrollTo({ top: 0 });
+    }
+  });
+
+  root.replaceChildren(...lead, bar, panelWrap);
+}
+
+// ══ Spell sub-tabs (within the Spells panel) ════════════════════════════════
+// If the character has multiple spellsets (≥2 sec-h3 inside the Spells sec-h2),
+// inject a pill-tab row so each class can be shown/hidden independently.
+function makeSpellSubTabs() {
+  const root = document.getElementById('rendered');
+  // Find the "Spells" sec-h2 (may be inside a tab-panel or directly in root)
+  let spellsDet = null;
+  for (const det of root.querySelectorAll('details.sec-h2')) {
+    const title = (det.querySelector(':scope > summary')?.textContent || '').trim().toLowerCase();
+    if (title === 'spells') { spellsDet = det; break; }
+  }
+  if (!spellsDet) return;
+
+  const h3Dets = Array.from(spellsDet.querySelectorAll(':scope details.sec-h3'));
+  if (h3Dets.length < 2) return;
+
+  // Build sub-tab bar — "All" pill first, then one pill per spellcasting class
+  const tabBar = document.createElement('div');
+  tabBar.className = 'spell-sub-tabs';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'spell-sub-btn';
+  allBtn.textContent = 'All';
+  allBtn.dataset.ssIdx = 'all';
+  allBtn.addEventListener('click', () => {
+    tabBar.querySelectorAll('.spell-sub-btn').forEach(b => b.classList.toggle('active', b === allBtn));
+    h3Dets.forEach(d => { d.style.display = ''; d.open = true; });
+    applyFilters();
+  });
+  tabBar.appendChild(allBtn);
+
+  h3Dets.forEach((det, idx) => {
+    const label = (det.querySelector(':scope > summary')?.textContent || `Class ${idx + 1}`)
+      .replace(/\s*—.+$/, '').trim();
+    const btn = document.createElement('button');
+    btn.className = 'spell-sub-btn' + (idx === 0 ? ' active' : '');
+    btn.textContent = label;
+    btn.dataset.ssIdx = String(idx);
+    btn.addEventListener('click', () => {
+      tabBar.querySelectorAll('.spell-sub-btn').forEach(b => b.classList.toggle('active', b === btn));
+      h3Dets.forEach((d, i) => { d.style.display = i === idx ? '' : 'none'; d.open = true; });
+      // Re-apply filters: if a search is active this will immediately restore all-h3 visibility.
+      applyFilters();
+    });
+    tabBar.appendChild(btn);
+    if (idx > 0) det.style.display = 'none';
+    det.open = true;
+  });
+
+  // Insert the tab bar at the top of the sec-h2's content (after the summary)
+  const summary = spellsDet.querySelector(':scope > summary');
+  if (summary?.nextSibling) {
+    spellsDet.insertBefore(tabBar, summary.nextSibling);
+  } else {
+    spellsDet.appendChild(tabBar);
+  }
+}
+
+// ══ Search ══════════════════════════════════════════════════════════════════════
+
+let searchGlobal = '';
+const tabFilters = {};  // panelIdx → { text?, trait?, save?, rank?, duration?, gearType?, proficiency? }
+
+function makeSearchBars() {
+  // ── Global search bar in toolbar ──────────────────────────────────────────
+  if (!document.getElementById('sg-wrap')) {
+    const tb = document.getElementById('toolbar');
+    const wrap = document.createElement('div');
+    wrap.id = 'sg-wrap';
+    const inp = document.createElement('input');
+    inp.type = 'search'; inp.id = 'search-global';
+    inp.placeholder = 'Search all…'; inp.autocomplete = 'off';
+    if (searchGlobal) inp.value = searchGlobal;
+    wrap.appendChild(inp);
+    const firstBtn = tb.querySelector('.btn');
+    if (firstBtn) firstBtn.before(wrap); else tb.appendChild(wrap);
+    inp.addEventListener('input', e => {
+      searchGlobal = e.target.value.trim().toLowerCase();
+      applyFilters();
+    });
+  }
+
+  // ── Per-tab bars ──────────────────────────────────────────────────────────
+  document.querySelectorAll('#rendered .tab-panel').forEach((panel, idx) => {
+    if (panel.querySelector('.tab-search-bar')) return;
+    if (!tabFilters[idx]) tabFilters[idx] = {};
+
+    const titles = [...panel.querySelectorAll('details.sec-h2 > summary')]
+      .map(s => s.textContent.trim().toLowerCase());
+    const isSpells = titles.some(t => t === 'spells');
+    const isFeats  = titles.some(t => t.includes('feat') || t.includes('class feature'));
+    const isGear   = titles.some(t => t.includes('equipment') || t.includes('currency'));
+    const isSkills = titles.some(t => t === 'skills');
+
+    const bar = document.createElement('div');
+    bar.className = 'tab-search-bar';
+
+    // Text input (always)
+    const textIn = mkInput(
+      isSpells ? 'Search name or effect… (e.g. "frightened")' : isFeats ? 'Filter feats…' :
+      isGear   ? 'Filter items…'  : isSkills ? 'Filter skills…' : 'Filter…'
+    );
+    if (isSpells) textIn.style.width = '15rem';
+    if (tabFilters[idx].text) textIn.value = tabFilters[idx].text;
+    textIn.addEventListener('input', e => { tabFilters[idx].text = e.target.value.trim().toLowerCase(); applyFilters(); });
+    bar.appendChild(textIn);
+
+    if (isSpells) {
+      const allTraits = new Set(), allSaves = new Set(), allRanks = new Set(), allActs = new Set();
+      panel.querySelectorAll('table.sp-tbl tr[data-traits]').forEach(tr => {
+        (tr.dataset.traits || '').split(',').forEach(t => { const v = t.trim(); if (v) allTraits.add(v); });
+        const sv = (tr.dataset.save || '').trim();
+        if (sv && sv !== '—') allSaves.add(sv);
+        if (tr.dataset.rank !== undefined) allRanks.add(tr.dataset.rank);
+        for (const k of (tr.dataset.act || '').split('-')) if (CAST_ICON[k]) allActs.add(k);
+      });
+
+      // Action-cost chips: ◆ ◆◆ ◆◆◆ ⟳ ◇ — multi-select toggles, the key play-time filter
+      const chipWrap = document.createElement('span');
+      chipWrap.className = 'act-chips';
+      const ACT_ORDER = ['1', '2', '3', 'R', 'F'];
+      const actSel = new Set((tabFilters[idx].act || '').split(',').filter(Boolean));
+      for (const k of ACT_ORDER) {
+        if (!allActs.has(k)) continue;
+        const chip = document.createElement('button');
+        chip.className = 'act-chip' + (actSel.has(k) ? ' active' : '');
+        chip.textContent = k === 'R' ? '⟳ reaction' : k === 'F' ? '◇ free' : CAST_ICON[k];
+        chip.title = CAST_TITLE[k];
+        chip.addEventListener('click', () => {
+          chip.classList.toggle('active');
+          const cur = new Set((tabFilters[idx].act || '').split(',').filter(Boolean));
+          cur.has(k) ? cur.delete(k) : cur.add(k);
+          tabFilters[idx].act = [...cur].join(',');
+          applyFilters();
+        });
+        chipWrap.appendChild(chip);
+      }
+
+      const traitSel = mkSelect('Trait: all', [...allTraits].sort(), t => cap(t));
+      if (tabFilters[idx].trait) traitSel.value = tabFilters[idx].trait;
+      traitSel.addEventListener('change', e => { tabFilters[idx].trait = e.target.value; applyFilters(); });
+
+      const saveSel = mkSelect('Save: any', [...allSaves].sort(), s => cap(s));
+      if (tabFilters[idx].save) saveSel.value = tabFilters[idx].save;
+      saveSel.addEventListener('change', e => { tabFilters[idx].save = e.target.value; applyFilters(); });
+
+      // Min-rank filter ("Rank 5+") — a merged signature spell matches if its
+      // heightenable range reaches the chosen rank.
+      const numRanks = [...allRanks].filter(r => r !== '0').sort((a, b) => +a - +b);
+      const rankSel = mkSelectCustom([
+        ['', 'Rank: any'],
+        ...(allRanks.has('0') ? [['c', 'Cantrips']] : []),
+        ...numRanks.map(r => [r, `Rank ${r}+`]),
+      ]);
+      if (tabFilters[idx].rank) rankSel.value = tabFilters[idx].rank;
+      rankSel.addEventListener('change', e => { tabFilters[idx].rank = e.target.value; applyFilters(); });
+
+      const durIn = mkInput('Duration…');
+      durIn.style.width = '8rem';
+      if (tabFilters[idx].duration) durIn.value = tabFilters[idx].duration;
+      durIn.addEventListener('input', e => { tabFilters[idx].duration = e.target.value.trim().toLowerCase(); applyFilters(); });
+
+      bar.append(chipWrap, traitSel, saveSel, rankSel, durIn);
+    }
+
+    if (isFeats) {
+      const traitSet = new Set();
+      panel.querySelectorAll('table:not(.sp-tbl) tbody tr').forEach(tr => {
+        const cell = tr.querySelector('td:nth-child(3)');
+        if (cell) cell.textContent.split(/[,;]\s*/).forEach(t => { const v = t.trim().toLowerCase(); if (v) traitSet.add(v); });
+      });
+      if (traitSet.size) {
+        const traitSel = mkSelect('Trait: all', [...traitSet].sort(), t => cap(t));
+        if (tabFilters[idx].trait) traitSel.value = tabFilters[idx].trait;
+        traitSel.addEventListener('change', e => { tabFilters[idx].trait = e.target.value; applyFilters(); });
+        bar.appendChild(traitSel);
+      }
+    }
+
+    if (isGear) {
+      const typeSet = new Set();
+      panel.querySelectorAll('table:not(.sp-tbl) tbody tr td:nth-child(4)').forEach(td => {
+        const v = td.textContent.trim().toLowerCase();
+        if (v && v !== '—') typeSet.add(v);
+      });
+      if (typeSet.size) {
+        const typeSel = mkSelect('Type: all', [...typeSet].sort(), t => cap(t));
+        if (tabFilters[idx].gearType) typeSel.value = tabFilters[idx].gearType;
+        typeSel.addEventListener('change', e => { tabFilters[idx].gearType = e.target.value; applyFilters(); });
+        bar.appendChild(typeSel);
+      }
+    }
+
+    // Clear button
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn btn-secondary tsb-clear';
+    clearBtn.textContent = '✕ Clear';
+    clearBtn.addEventListener('click', () => {
+      tabFilters[idx] = {};
+      bar.querySelectorAll('input, select').forEach(el => { el.value = ''; });
+      bar.querySelectorAll('.act-chip').forEach(c => c.classList.remove('active'));
+      applyFilters();
+    });
+    bar.appendChild(clearBtn);
+
+    // No-results notice
+    const noRes = document.createElement('div');
+    noRes.className = 'search-no-results';
+    noRes.id = `search-no-res-${idx}`;
+    noRes.textContent = 'No matching results.';
+    bar.appendChild(noRes);
+
+    panel.insertBefore(bar, panel.firstChild);
+  });
+}
+
+function mkInput(placeholder) {
+  const el = document.createElement('input');
+  el.type = 'search'; el.className = 'tsb-text';
+  el.placeholder = placeholder; el.autocomplete = 'off';
+  return el;
+}
+
+function mkSelect(allLabel, values, labelFn) {
+  return mkSelectCustom([['', allLabel], ...values.map(v => [v, labelFn(v)])]);
+}
+
+function mkSelectCustom(options) {
+  const sel = document.createElement('select');
+  sel.className = 'tsb-select';
+  for (const [v, l] of options) {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = l; sel.appendChild(opt);
+  }
+  return sel;
+}
+
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function applyFilters() {
+  const gq = searchGlobal;
+  const root = document.getElementById('rendered');
+
+  // Global-search mode indicator in the toolbar
+  const sm = document.getElementById('search-mode');
+  if (sm) sm.style.display = gq ? 'inline-flex' : 'none';
+
+  // ── 1. Tab-panel visibility ───────────────────────────────────────────────
+  // When global search is active, expose ALL panels so results across every
+  // tab are visible.  When cleared, only the active tab's panel is shown.
+  const allPanels   = [...root.querySelectorAll('.tab-panel')];
+  const activePanelIdx = root.querySelector('.tab-btn.active')?.dataset.tab ?? '0';
+  allPanels.forEach(p => {
+    p.style.display = (gq || p.dataset.tab === activePanelIdx) ? '' : 'none';
+  });
+
+  // Open every <details> chain above an element so filter matches are never
+  // silently hidden inside a collapsed section.
+  const openAncestors = el => {
+    for (let d = el.closest('details'); d; d = d.parentElement?.closest('details')) d.open = true;
+  };
+
+  // ── 2. Per-panel filtering ────────────────────────────────────────────────
+  allPanels.forEach((panel, idx) => {
+    const tf = tabFilters[idx] || {};
+    const anyFilter = gq || Object.values(tf).some(v => v);
+    let totalVisible = 0;
+
+    // ── Spell class sub-tabs (sec-h3 elements) ──────────────────────────────
+    // When any filter is active, show ALL spell-class sections so results
+    // from every caster class (bard, wizard, …) are visible simultaneously.
+    // When search is cleared, restore the single active spell sub-tab.
+    const spellSubDets = [...panel.querySelectorAll('details.sec-h3')];
+    if (spellSubDets.length > 1) {
+      if (anyFilter) {
+        spellSubDets.forEach(d => { d.style.display = ''; });
+      } else {
+        const activeSub = panel.querySelector('.spell-sub-btn.active');
+        const ssIdx = activeSub?.dataset.ssIdx ?? '0';
+        if (ssIdx === 'all') {
+          spellSubDets.forEach(d => { d.style.display = ''; });
+        } else {
+          const activeSubIdx = parseInt(ssIdx, 10);
+          spellSubDets.forEach((d, i) => { d.style.display = i === activeSubIdx ? '' : 'none'; });
+        }
+      }
+    }
+
+    // ── Spell tables ────────────────────────────────────────────────────────
+    panel.querySelectorAll('table.sp-tbl').forEach(tbl => {
+      let anyInTable = false;
+      tbl.querySelectorAll('tbody tr').forEach(tr => {
+        // Text search covers the visible row AND the spell's full effect prose,
+        // so "frightened" finds every spell whose description mentions it.
+        const text = tr.textContent.toLowerCase() + ' ' + (tr.dataset.desc || '');
+        let ok = true;
+        if (gq && !text.includes(gq)) ok = false;
+        if (ok && tf.text && !text.includes(tf.text)) ok = false;
+        if (ok && tf.trait) {
+          const traits = (tr.dataset.traits || '').split(',').map(s => s.trim());
+          if (!traits.includes(tf.trait)) ok = false;
+        }
+        if (ok && tf.save && (tr.dataset.save || '') !== tf.save) ok = false;
+        if (ok && tf.rank) {
+          if (tf.rank === 'c') {
+            if (tr.dataset.rank !== '0') ok = false;
+          } else {
+            // "Rank N+": match if the spell's highest castable rank reaches N
+            const max = parseInt(tr.dataset.rankMax ?? tr.dataset.rank, 10);
+            if (!(max >= parseInt(tf.rank, 10))) ok = false;
+          }
+        }
+        if (ok && tf.act) {
+          const wanted = tf.act.split(',');
+          const rowActs = (tr.dataset.act || '').split('-');   // '1-3' = castable at 1, 2 or 3
+          const expanded = rowActs.length === 2 && /^\d+$/.test(rowActs[0]) && /^\d+$/.test(rowActs[1])
+            ? Array.from({ length: rowActs[1] - rowActs[0] + 1 }, (_, i) => String(+rowActs[0] + i))
+            : rowActs;
+          if (!wanted.some(w => expanded.includes(w))) ok = false;
+        }
+        if (ok && tf.duration && !(tr.dataset.duration || '').includes(tf.duration)) ok = false;
+        tr.style.display = ok ? '' : 'none';
+        if (ok) { anyInTable = true; totalVisible++; }
+      });
+      // wrapTables() nests each <table> in a .tbl-wrap div, so the rank header
+      // ("Rank N · X slots") is the previous sibling of the WRAPPER, not the table.
+      const wrapEl = tbl.closest('.tbl-wrap') || tbl;
+      const prev = wrapEl.previousElementSibling;
+      if (prev?.classList.contains('sp-rank-hdr')) prev.style.display = anyInTable ? '' : 'none';
+      wrapEl.style.display = anyInTable ? '' : 'none';
+      if (anyFilter && anyInTable) openAncestors(tbl);
+    });
+
+    // When a filter is active, collapse spell class sections that became
+    // entirely empty (all their spells filtered out).
+    if (anyFilter && spellSubDets.length > 1) {
+      spellSubDets.forEach(det => {
+        const hasVisible = [...det.querySelectorAll('table.sp-tbl')]
+          .some(t => (t.closest('.tbl-wrap') || t).style.display !== 'none');
+        det.style.display = hasVisible ? '' : 'none';
+      });
+    }
+
+    // ── Regular tables (feats, gear, skills, etc.) ─────────────────────────
+    panel.querySelectorAll('table:not(.sp-tbl)').forEach(tbl => {
+      let anyInTable = false;
+      tbl.querySelectorAll('tbody tr').forEach(tr => {
+        const text = tr.textContent.toLowerCase();
+        let ok = true;
+        if (gq && !text.includes(gq)) ok = false;
+        if (ok && tf.text && !text.includes(tf.text)) ok = false;
+        if (ok && tf.trait) {
+          const cell = tr.querySelector('td:nth-child(3)');
+          if (cell) {
+            const traitText = cell.textContent.toLowerCase();
+            if (!traitText.split(/[,;\s]+/).some(t => t.trim() === tf.trait)) ok = false;
+          }
+        }
+        if (ok && tf.gearType) {
+          const cell = tr.querySelector('td:nth-child(4)');
+          if (cell && !cell.textContent.toLowerCase().includes(tf.gearType)) ok = false;
+        }
+        tr.style.display = ok ? '' : 'none';
+        if (ok) { anyInTable = true; totalVisible++; }
+      });
+      if (anyFilter && anyInTable) openAncestors(tbl);
+    });
+
+    // No-results notice
+    const noRes = document.getElementById(`search-no-res-${idx}`);
+    if (noRes) noRes.style.display = (anyFilter && totalVisible === 0) ? 'block' : 'none';
+  });
+}
+
+// ══ Glossary (hover descriptions + pop-out windows) ═════════════════════════════
+let GLOSSARY = new Map();
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+}
+
+// All HTML built from untrusted XML must pass through here before hitting innerHTML
+// or a document write. Uses DOMPurify; if it somehow failed to load, fail CLOSED by
+// stripping every tag (escaped text only) rather than rendering raw markup.
+function sanitizeHtml(html) {
+  if (window.DOMPurify && typeof DOMPurify.sanitize === 'function') {
+    return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+  }
+  const d = document.createElement('div');
+  d.textContent = String(html);
+  return d.innerHTML;
+}
+
+function glossKey(name) {
+  return name.replace(/^\([A-Z]\)\s*/, '').replace(/\*+$/, '').trim().toLowerCase();
+}
+
+// Convert a Fantasy Grounds formattedtext element's children into safe display HTML.
+const FG_TAG_MAP = { p:'p', b:'strong', i:'em', strong:'strong', em:'em', h:'h4', list:'ul', li:'li', frame:'blockquote' };
+function fgNodeToHtml(node) {
+  let out = '';
+  for (const child of node.childNodes) {
+    if (child.nodeType === 3) {                     // text
+      out += escHtml(child.textContent).replace(/\\n/g, '<br>');
+    } else if (child.nodeType === 1) {              // element
+      const tag = child.tagName.toLowerCase();
+      if (tag === 'br') {
+        out += '<br>';
+      } else if (tag === 'link') {                  // FG cross-reference → keep text only
+        out += `<span class="gref">${fgNodeToHtml(child)}</span>`;
+      } else if (FG_TAG_MAP[tag]) {
+        const m = FG_TAG_MAP[tag];
+        out += `<${m}>${fgNodeToHtml(child)}</${m}>`;
+      } else {                                      // unknown tag → unwrap, keep contents
+        out += fgNodeToHtml(child);
+      }
+    }
+  }
+  return out;
+}
+
+// Serialize a named child field that may hold formattedtext or plain text.
+function fgFieldHtml(parent, tag) {
+  const node = findPath(parent, tag);
+  if (!node) return '';
+  if (node.children.length) return fgNodeToHtml(node);
+  const t = (node.textContent || '').trim();
+  return t ? `<p>${escHtml(t)}</p>` : '';
+}
+
+// Short general blurbs for the core skills (FG has no skill description text).
+const SKILL_DESCRIPTIONS = {
+  acrobatics:   'Balancing, tumbling past foes, squeezing through tight spaces, and staying on your feet.',
+  arcana:       'Knowledge of arcane magic, magical theory, planar lore, and creatures of arcane origin.',
+  athletics:    'Climbing, jumping, swimming, and forceful maneuvers such as Grapple, Shove, Trip, and Disarm.',
+  crafting:     'Making and repairing items, identifying alchemy, and earning income through a trade.',
+  deception:    'Lying, feinting in combat, creating diversions, and impersonating other people.',
+  diplomacy:    'Influencing others with requests, gathering information, and making good impressions.',
+  intimidation: 'Coercing and demoralizing others through threats and sheer force of personality.',
+  lore:         'Specialized knowledge of a narrow field, used to Recall Knowledge and Earn Income within that subject.',
+  medicine:     'Treating wounds, diseases, and poisons, and administering first aid in a pinch.',
+  perception:   'Noticing what is around you — spotting hidden creatures and objects, and rolling initiative in most encounters.',
+  nature:       'Knowledge of the natural world, commanding animals, and lore of the wilds.',
+  occultism:    'Knowledge of occult lore, esoteric philosophy, and supernatural creatures.',
+  performance:  'Entertaining an audience and earning income through artistry.',
+  religion:     'Knowledge of deities, the planes, the undead, and creatures of divine origin.',
+  society:      'Knowledge of civilization and law, plus creating and decoding forgeries.',
+  stealth:      'Hiding, sneaking past observers, and concealing objects from notice.',
+  survival:     'Subsisting and surviving in the wild, tracking quarry, and sensing direction.',
+  thievery:     'Picking locks, disabling devices, palming objects, and stealing unnoticed.',
+};
+const ABILITY_FULL = {
+  strength:'Strength', dexterity:'Dexterity', constitution:'Constitution',
+  intelligence:'Intelligence', wisdom:'Wisdom', charisma:'Charisma',
+};
+
+function buildGlossary(char, skills = []) {
+  const g = new Map();
+  const skillActs = {};   // skill name -> [activity names]
+  const aliasCandidates = [];   // [aliasKey, entry] — applied after all real keys
+  const add = (name, entry) => {
+    const key = glossKey(name);
+    if (!key || g.has(key)) return;               // first definition wins
+    g.set(key, entry);
+    // Aliases so effect-source names that differ slightly still resolve:
+    //   "Breath Control (Versatile Human)" → "breath control"
+    //   "Blind-Fight" → "blindfight"
+    const noParen = key.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
+    const squash  = key.replace(/[^a-z0-9]+/g, '');
+    const squashNoParen = noParen.replace(/[^a-z0-9]+/g, '');
+    for (const a of [noParen, squash, squashNoParen])
+      if (a && a.length >= 4 && a !== key) aliasCandidates.push([a, entry]);
+  };
+  const metaPush = (meta, parent, pairs) => {
+    for (const [label, tag] of pairs) {
+      const v = txt(parent, tag);
+      if (v && v !== '0') meta.push([label, v]);
+    }
+  };
+
+  const SUCCESS_TIERS = [
+    ['critsuccess','Critical Success'], ['success','Success'],
+    ['failure','Failure'], ['critfailure','Critical Failure'],
+  ];
+
+  // ── Spells (added first so a spell wins over a same-named scroll/wand) ──
+  for (const sc of children(char, 'spellset')) {
+    for (const lnode of children(sc, 'levels')) {
+      const lvl = txt(lnode, 'level') || lnode.tagName.replace(/\D/g, '');
+      for (const sp of children(lnode, 'spells')) {
+        const name = txt(sp, 'name');
+        if (!name) continue;
+        const meta = [['Rank', lvl || '—']];
+        // Real action cost from <casting> (glyph-encoded), not the automation labels
+        const cost = parseCastCost(txt(sp, 'casting'));
+        if (cost.title) meta.push(['Cast', cost.key === 'T' ? cost.title : `${cost.icons} ${cost.title}`.trim()]);
+        const trig = txt(sp, 'trigger');
+        if (trig) meta.push(['Trigger', trig]);
+        metaPush(meta, sp, [
+          ['Range','range'], ['Area','area'], ['Targets','targets'],
+          ['Duration','duration'], ['Save','savingthrow'], ['Traits','traits'],
+        ]);
+        // Main description first, then save-outcome tiers if present
+        let body = fgFieldHtml(sp, 'effects');
+        for (const [tag, label] of SUCCESS_TIERS) {
+          const tier = fgFieldHtml(sp, tag);
+          if (tier) body += `<h4>${label}</h4>${tier}`;
+        }
+        const heightened = fgFieldHtml(sp, 'heightened');
+        if (heightened) body += '<h4>Heightened</h4>' + heightened;
+        const spellAuto    = txt(sp, 'automation').trim();
+        const spellActions = parseSpellActions(sp, name);
+        add(name, { name, kind: `Spell · rank ${lvl}`, meta, body, spellActions, automation: spellAuto, editable: !!spellAuto });
+      }
+    }
+  }
+
+  // ── Feats ──
+  for (const f of children(char, 'featlist')) {
+    const name = txt(f, 'name');
+    if (!name) continue;
+    const meta = [];
+    const lv = num(f, 'level_applied') || num(f, 'level');
+    if (lv) meta.push(['Level', String(lv)]);
+    metaPush(meta, f, [
+      ['Traits','traits'], ['Prerequisites','prerequisites'],
+      ['Requirements','requirements'], ['Trigger','trigger'], ['Frequency','frequency'],
+    ]);
+    const body = fgFieldHtml(f, 'effectsbenefits') || fgFieldHtml(f, 'shortbenefits');
+    add(name, { name, kind: 'Feat', meta, body, automation: txt(f, 'automation').trim(), editable: true });
+  }
+
+  // ── Special abilities / class features ──
+  for (const sa of children(char, 'specialabilitylist')) {
+    const name = txt(sa, 'name');
+    if (!name) continue;
+    const meta = [];
+    const lv = num(sa, 'level');
+    if (lv) meta.push(['Level', String(lv)]);
+    metaPush(meta, sa, [['Category','subcategory'], ['Traits','traits']]);
+    const body = fgFieldHtml(sa, 'text');
+    add(name, { name, kind: 'Class feature', meta, body, automation: txt(sa, 'automation').trim(), editable: true });
+  }
+
+  // ── Activities (skill actions, exploration, encounter, downtime, feat) ──
+  const ACTIVITY_COST = {
+    action:'1 action', '2actions':'2 actions', '3actions':'3 actions',
+    reaction:'reaction', freeaction:'free action',
+    downtime:'downtime', exploration:'exploration', other:'',
+  };
+  for (const grp of children(char, 'activityset')) {
+    const sections = findPath(grp, 'sections');
+    if (!sections) continue;
+    for (const sec of Array.from(sections.children)) {
+      const acts = findPath(sec, 'activities');
+      if (!acts) continue;
+      for (const a of Array.from(acts.children)) {
+        const name = txt(a, 'name');
+        if (!name) continue;
+        const cat     = txt(a, 'category');
+        const section = txt(a, 'category_section').replace(/\s*-\s*(Trained|Expert|Master|Legendary)\s*$/, '');
+        if (cat === 'Skill Activities' && section) (skillActs[section] ??= []).push(name);
+        const kindBits = [];
+        if (cat === 'Skill Activities' && section) kindBits.push(section);
+        kindBits.push(cat ? cat.replace(/\s*Activities$/, ' activity') : 'Activity');
+        const meta = [];
+        const cost = ACTIVITY_COST[txt(a, 'activity')];
+        if (cost) meta.push(['Action', cost]);
+        metaPush(meta, a, [['Traits','traits'], ['Requirements','requirements'], ['Trigger','trigger']]);
+        let body = fgFieldHtml(a, 'effectsbenefits');
+        for (const [tag, label] of SUCCESS_TIERS) {
+          const tier = fgFieldHtml(a, tag);
+          if (tier) body += `<h4>${label}</h4>${tier}`;
+        }
+        add(name, { name, kind: kindBits.join(' · '), meta, body, automation: '' });
+      }
+    }
+  }
+
+  // ── Inventory items ──
+  for (const item of children(char, 'inventorylist')) {
+    const name = txt(item, 'name');
+    if (!name) continue;
+    const meta = [];
+    metaPush(meta, item, [
+      ['Level','level'], ['Price','cost'], ['Bulk','bulk'],
+      ['Type','subtype'], ['Usage','methodofuse'], ['Traits','traits'],
+    ]);
+    let body = '';
+    const act = txt(item, 'activation');
+    if (act) body += `<p><b>Activate</b> — ${sanitizeHtml(act)}</p>`;   // FG stores light inline markup here
+    body += fgFieldHtml(item, 'description');
+    add(name, { name, kind: txt(item, 'subtype') || txt(item, 'type') || 'Item',
+                meta, body, automation: txt(item, 'automation').trim(), editable: true });
+  }
+
+  // Apply aliases last so they never shadow a real entry's primary key.
+  for (const [aliasKey, entry] of aliasCandidates)
+    if (!g.has(aliasKey)) g.set(aliasKey, entry);
+
+  // ── Skills (keyed "skill:<name>" so they never auto-linkify in prose) ──
+  for (const s of skills) {
+    // A specialised skill ("Lore (Academia)") shares the base skill's blurb and
+    // actions ("Lore"): strip the trailing parenthetical to find the base name.
+    const baseSkill = s.name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const acts = [...new Set(skillActs[s.name] || skillActs[baseSkill] || [])].sort();
+    const desc = SKILL_DESCRIPTIONS[s.name.toLowerCase()]
+              || SKILL_DESCRIPTIONS[baseSkill.toLowerCase()] || '';
+    const ability = ABILITY_FULL[(s.statname || '').toLowerCase()] || s.statname || '';
+    const profLabel = PROF_LABEL[s.proflevel] || s.proflevel || '';
+
+    let body = desc ? `<p>${escHtml(desc)}</p>` : '';
+    if (acts.length) {
+      body += '<h4>Skill actions</h4><ul>' +
+        acts.map(n => `<li><a class="gloss" data-key="${escHtml(glossKey(n))}">${escHtml(n)}</a></li>`).join('') +
+        '</ul>';
+    } else {
+      body += '<p><em>No skill actions available.</em></p>';
+    }
+    // Full pop-out window: general blurb + each action's full text inline.
+    let bodyFull = desc ? `<p>${escHtml(desc)}</p>` : '';
+    for (const n of acts) {
+      const ae = g.get(glossKey(n));
+      bodyFull += `<h4>${escHtml(n)}</h4>` + (ae && ae.body ? ae.body : '<p><em>No text in export.</em></p>');
+    }
+
+    const meta = [['Modifier', sign(s.total)]];
+    if (profLabel) meta.push(['Proficiency', profLabel]);
+    if (ability)   meta.push(['Key ability', ability]);
+
+    g.set('skill:' + s.name.toLowerCase(),
+          { name: s.name, kind: 'Skill', meta, body, bodyFull, automation: '' });
+  }
+
+  return g;
+}
+
+function glossEntryHtml(e, withHint) {
+  let h = `<div class="gp-head"><span class="gp-name">${escHtml(e.name)}</span>` +
+          `<span class="gp-kind">${escHtml(e.kind)}</span></div>`;
+  if (e.meta && e.meta.length)
+    h += '<div class="gp-meta">' +
+         e.meta.map(([k, v]) => `<span><b>${escHtml(k)}:</b> ${escHtml(v)}</span>`).join('') +
+         '</div>';
+  if (e.body) h += `<div class="gp-body">${e.body}</div>`;
+  else        h += '<div class="gp-body"><em>No description text in this export.</em></div>';
+  if (e.spellActions) h += e.spellActions;
+  if (e.automation) h += `<div class="gp-auto"><b>Automation:</b>${automationToHtml(e.automation)}</div>`;
+  if (e.editable) h += `<div class="gp-edit-row"><button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}">✏ Edit automation</button></div>`;
+  if (withHint) h += '<div class="gp-hint">Click to open full entry.</div>';
+  return h;
+}
+
+// Sections whose text should be scanned for entity names.
+const GLOSS_SECTIONS = new Set([
+  'spells', 'class features', 'feats', 'equipment', 'buffs & consumables', 'defenses',
+  'activities', 'skills', 'weapons',
+]);
+
+function linkifyGlossary() {
+  if (!GLOSSARY.size) return;
+  const keys = [...GLOSSARY.keys()]
+    .sort((a, b) => b.length - a.length)
+    .map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  let re;
+  try {
+    re = new RegExp("(?<![\\w'])(" + keys.join('|') + ")(?![\\w'])", 'gi');
+  } catch {
+    re = new RegExp("\\b(" + keys.join('|') + ")\\b", 'gi');   // fallback: no look-behind
+  }
+
+  const root = document.getElementById('rendered');
+  let active = false;
+  const targets = [];
+  for (const el of root.children) {
+    if (el.tagName === 'H1') { active = false; continue; }
+    if (el.tagName === 'H2') { active = GLOSS_SECTIONS.has(el.textContent.trim().toLowerCase()); continue; }
+    if (active) targets.push(el);
+  }
+  for (const el of targets) linkifyElement(el, re);
+}
+
+function linkifyElement(el, re) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      const p = n.parentElement;
+      if (!p || p.closest('a, code, th, .gloss')) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const textNodes = [];
+  let n; while ((n = walker.nextNode())) textNodes.push(n);
+
+  for (const tn of textNodes) {
+    const s = tn.nodeValue;
+    re.lastIndex = 0;
+    if (!re.test(s)) continue;
+    re.lastIndex = 0;
+
+    const frag = document.createDocumentFragment();
+    let last = 0, m, wrapped = false;
+    while ((m = re.exec(s))) {
+      const matched = m[1];
+      const key = glossKey(matched);
+      if (!GLOSSARY.has(key)) continue;
+      // Skip ALL-CAPS tokens (FG trait/keyword like FEAR) unless the entry name is itself caps.
+      if (matched.length > 2 && matched === matched.toUpperCase() &&
+          GLOSSARY.get(key).name !== GLOSSARY.get(key).name.toUpperCase()) continue;
+
+      if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+      const a = document.createElement('a');
+      a.className = 'gloss';
+      a.dataset.key = key;
+      a.textContent = matched;
+      frag.appendChild(a);
+      last = m.index + matched.length;
+      wrapped = true;
+    }
+    if (wrapped) {
+      if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+      tn.parentNode.replaceChild(frag, tn);
+    }
+  }
+}
+
+// Wrap each skill name in the Skills table with a hover/click link to its
+// "skill:<name>" glossary entry (general blurb + that skill's actions).
+function linkifySkillsTable() {
+  if (!GLOSSARY.size) return;
+  const root = document.getElementById('rendered');
+  let skillsSec = null;
+  root.querySelectorAll('details.sec-h2').forEach(sec => {
+    const title = (sec.querySelector(':scope > summary')?.textContent || '').trim().toLowerCase();
+    if (title === 'skills') skillsSec = sec;
+  });
+  if (!skillsSec) return;
+  for (const tr of skillsSec.querySelectorAll('tbody tr')) {
+    const td = tr.querySelector('td');
+    if (!td || td.querySelector('a.gloss')) continue;
+    const full = td.textContent;
+    // Skill name is everything before the trailing "(ABBR)" ability tag — this keeps
+    // a Lore specialty intact, e.g. "Lore (Academia) (INT)" → "Lore (Academia)".
+    const m = full.match(/^(.*?)\s*\((?:STR|DEX|CON|INT|WIS|CHA)\)/);
+    const nm = (m ? m[1] : full.replace(/\s*†.*$/, '')).trim();
+    const key = 'skill:' + nm.toLowerCase();
+    if (!GLOSSARY.has(key)) continue;
+    const a = document.createElement('a');
+    a.className = 'gloss';
+    a.dataset.key = key;
+    a.textContent = nm;
+    td.textContent = '';
+    td.appendChild(a);
+    td.appendChild(document.createTextNode(full.slice(nm.length)));
+  }
+}
+
+// ── popup interaction ──
+const glossPopup = document.getElementById('gloss-popup');
+let glossHideTimer = null;
+
+function positionGlossPopup(anchor) {
+  const r  = anchor.getBoundingClientRect();
+  const pw = glossPopup.offsetWidth, ph = glossPopup.offsetHeight;
+  let left = r.left;
+  let top  = r.bottom + 6;
+  if (left + pw > window.innerWidth - 12)  left = window.innerWidth - pw - 12;
+  if (top  + ph > window.innerHeight - 12) top  = r.top - ph - 6;
+  glossPopup.style.left = Math.max(12, left) + 'px';
+  glossPopup.style.top  = Math.max(12, top)  + 'px';
+}
+
+function showGlossPopup(anchor) {
+  const entry = GLOSSARY.get(anchor.dataset.key);
+  if (!entry) return;
+  glossPopup.innerHTML = sanitizeHtml(glossEntryHtml(entry, true));
+  glossPopup.style.display = 'block';
+  positionGlossPopup(anchor);
+}
+
+const glossModal = document.getElementById('gloss-modal');
+
+function openGlossModal(key) {
+  const e = GLOSSARY.get(key);
+  if (!e) return;
+  const content = document.getElementById('gloss-modal-content');
+  const editArea = document.getElementById('gloss-modal-edit-area');
+
+  // Build entry HTML (use bodyFull if available for skills)
+  let h = `<div class="gp-head"><span class="gp-name">${escHtml(e.name)}</span>` +
+           `<span class="gp-kind">${escHtml(e.kind)}</span></div>`;
+  if (e.meta && e.meta.length)
+    h += '<div class="gp-meta">' +
+         e.meta.map(([k, v]) => `<span><b>${escHtml(k)}:</b> ${escHtml(v)}</span>`).join('') +
+         '</div>';
+  const body = e.bodyFull || e.body;
+  h += body
+    ? `<div class="gp-body">${body}</div>`
+    : '<div class="gp-body"><em>No description text in this export.</em></div>';
+  if (e.spellActions) h += e.spellActions;
+  if (e.automation)
+    h += `<div class="gp-auto"><b>Automation:</b>${automationToHtml(e.automation)}</div>`;
+
+  content.innerHTML = sanitizeHtml(h);
+
+  // Edit button (feats, class features, inventory items)
+  if (e.editable) {
+    editArea.innerHTML = sanitizeHtml(
+      `<button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}">✏ Edit automation</button>`
+    );
+  } else {
+    editArea.innerHTML = '';
+  }
+
+  glossModal.showModal();
+}
+
+(() => {
+  const rendered = document.getElementById('rendered');
+  rendered.addEventListener('mouseover', e => {
+    const a = e.target.closest('.gloss');
+    if (!a) return;
+    clearTimeout(glossHideTimer);
+    showGlossPopup(a);
+  });
+  rendered.addEventListener('mouseout', e => {
+    const a = e.target.closest('.gloss');
+    if (!a) return;
+    glossHideTimer = setTimeout(() => { glossPopup.style.display = 'none'; }, 250);
+  });
+  rendered.addEventListener('click', e => {
+    const a = e.target.closest('.gloss');
+    if (!a) return;
+    e.preventDefault();
+    glossPopup.style.display = 'none';
+    openGlossModal(a.dataset.key);
+  });
+  glossPopup.addEventListener('mouseenter', () => clearTimeout(glossHideTimer));
+  glossPopup.addEventListener('mouseleave', () => { glossPopup.style.display = 'none'; });
+  // Edit button or internal gloss link inside the hover popup.
+  glossPopup.addEventListener('click', e => {
+    const editBtn = e.target.closest('.gp-edit-btn');
+    if (editBtn) {
+      glossPopup.style.display = 'none';
+      openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto);
+      return;
+    }
+    const a = e.target.closest('.gloss');
+    if (!a) return;
+    e.preventDefault();
+    glossPopup.style.display = 'none';
+    openGlossModal(a.dataset.key);
+  });
+})();
+
+// ── Gloss modal wiring ───────────────────────────────────────────────────────
+document.getElementById('gloss-modal-close').addEventListener('click', () => glossModal.close());
+glossModal.addEventListener('click', e => {
+  if (e.target === glossModal) { glossModal.close(); return; }   // backdrop click
+  const editBtn = e.target.closest('.gp-edit-btn');
+  if (editBtn) {
+    glossModal.close();
+    openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto);
+  }
+});
+
+// ══ UI ════════════════════════════════════════════════════════════════════════
+
+let currentMd       = '';
+let currentFilename = '';
+let currentXmlDoc   = null;
+let currentChar     = null;
+
+// ── Recent characters (localStorage) ─────────────────────────────────────────
+const RECENT_KEY = 'folio.recent';
+const RECENT_MAX = 5;
+
+function loadRecents() {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveRecent(label, filename, xml) {
+  let list = loadRecents().filter(r => r.filename !== filename);
+  list.unshift({ label, filename, xml, ts: Date.now() });
+  list = list.slice(0, RECENT_MAX);
+  // Quota-safe: drop oldest entries until the write fits (or give up silently)
+  while (list.length) {
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); break; }
+    catch { list.pop(); }
+  }
+  renderRecentPills();
+  renderCharSwitcher();
+}
+
+function renderRecentPills() {
+  const wrap = document.getElementById('recent-chars');
+  if (!wrap) return;
+  const list = loadRecents();
+  wrap.innerHTML = '';
+  for (const r of list) {
+    const btn = document.createElement('button');
+    btn.className = 'recent-pill';
+    btn.innerHTML = `${escHtml(r.label)}<small>reopen</small>`;
+    btn.addEventListener('click', () => processXmlText(r.xml, r.filename));
+    wrap.appendChild(btn);
+  }
+}
+
+function renderCharSwitcher() {
+  const wrap = document.getElementById('char-switcher');
+  if (!wrap) return;
+  const list = loadRecents();
+  wrap.innerHTML = '';
+  if (list.length < 2) return;
+  for (const r of list) {
+    const btn = document.createElement('button');
+    btn.className = 'cs-pill' + (r.filename === currentLoadedFile ? ' active' : '');
+    btn.textContent = r.label;
+    btn.title = r.filename;
+    btn.addEventListener('click', () => {
+      if (r.filename !== currentLoadedFile) processXmlText(r.xml, r.filename);
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+function dismissGlossHint() {
+  document.getElementById('gloss-hint').style.display = 'none';
+  try { localStorage.setItem('folio.hintSeen', '1'); } catch {}
+}
+
+// Wrap every rendered table so wide tables scroll inside their own box
+// instead of forcing the whole page to scroll horizontally on phones.
+function wrapTables() {
+  document.querySelectorAll('#rendered table').forEach(tbl => {
+    if (tbl.parentElement?.classList.contains('tbl-wrap')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'tbl-wrap';
+    tbl.before(wrap);
+    wrap.appendChild(tbl);
+  });
+}
+
+let currentLoadedFile = '';
+
+function processFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => processXmlText(String(e.target.result), file.name);
+  reader.readAsText(file);
+}
+
+function processXmlText(xmlText, fileName) {
+  currentFilename = fileName.replace(/\.[^.]+$/, '');
+  {
+    try {
+      // Refuse DTDs / custom entity declarations (entity-expansion DoS). Browsers
+      // don't fetch external entities, but a DOCTYPE has no place in an FG export.
+      if (/<!DOCTYPE|<!ENTITY/i.test(xmlText.slice(0, 65536))) {
+        alert('This XML contains a DOCTYPE/entity declaration and was refused for safety. A genuine Fantasy Grounds export has none.');
+        return;
+      }
+
+      const parser = new DOMParser();
+      const doc    = parser.parseFromString(xmlText, 'application/xml');
+      const root   = doc.documentElement;
+
+      if (root.tagName === 'parsererror' || root.querySelector('parsererror')) {
+        alert('XML parse error — is this a valid Fantasy Grounds export?');
+        return;
+      }
+
+      // Version check
+      const { cls, msg } = checkFgVersion(root);
+      const vbar = document.getElementById('version-bar');
+      vbar.textContent = msg;
+      vbar.className = cls;
+      vbar.style.display = 'block';
+
+      const char = root.querySelector('character');
+      if (!char) { alert('No <character> element found in this XML.'); return; }
+
+      currentXmlDoc = doc;
+      currentChar   = char;
+      currentMd = render(char);
+
+      document.getElementById('filename-label').textContent = fileName;
+      document.getElementById('rendered').innerHTML = sanitizeHtml(marked.parse(currentMd));
+      makeSortable();
+      GLOSSARY = buildGlossary(char, parseSkills(char));
+      linkifyGlossary();
+      makeCollapsible();
+      linkifySkillsTable();
+      makeTabs();
+      makeSpellSubTabs();
+      makeSearchBars();
+      wrapTables();
+      if (searchGlobal) applyFilters();
+      document.getElementById('btn-collapse').textContent = 'Collapse all';
+      document.getElementById('raw-pre').textContent = currentMd;
+      populateCharHeader(char);
+
+      const charName = txt(char, 'name') || currentFilename;
+      document.title = `${charName} · Folio`;
+      currentLoadedFile = fileName;
+      saveRecent(charName, fileName, xmlText);
+
+      let hintSeen = false;
+      try { hintSeen = localStorage.getItem('folio.hintSeen') === '1'; } catch {}
+      document.getElementById('gloss-hint').style.display = hintSeen ? 'none' : 'flex';
+
+      document.getElementById('upload-panel').style.display  = 'none';
+      document.getElementById('output-panel').style.display  = 'flex';
+    } catch (err) {
+      alert(`Error processing file: ${err.message}`);
+      console.error(err);
+    }
+  }
+}
+
+// ── Automation entry builder ──────────────────────────────────────────────────
+
+const AB_SKILLS = [
+  ['acrobatics','Acrobatics'],['arcana','Arcana'],['athletics','Athletics'],
+  ['crafting','Crafting'],['deception','Deception'],['diplomacy','Diplomacy'],
+  ['intimidation','Intimidation'],['medicine','Medicine'],['nature','Nature'],
+  ['occultism','Occultism'],['perception','Perception'],['performance','Performance'],
+  ['religion','Religion'],['society','Society'],['stealth','Stealth'],
+  ['survival','Survival'],['thievery','Thievery'],
+];
+
+const AB_TARGET_OPTS = {
+  EFF_SKILL:    [['','All skills'], ...AB_SKILLS],
+  EFF_SAVE:     [['','All saves'],['fortitude','Fortitude'],['reflex','Reflex'],['will','Will']],
+  EFF_ATK:      [['','All attacks'],['melee','Melee'],['ranged','Ranged']],
+  EFF_DMG:      [['','All damage'],['melee','Melee'],['ranged','Ranged']],
+  EFF_RESIST:   [['fire','Fire'],['cold','Cold'],['electricity','Lightning'],
+                 ['acid','Acid'],['poison','Poison'],['bludgeoning','Bludgeoning'],
+                 ['piercing','Piercing'],['slashing','Slashing'],
+                 ['force','Force'],['mental','Mental'],['spirit','Spirit']],
+  PROF_SKILL:   AB_SKILLS,
+  PROF_SAVE:    [['fortitude','Fortitude'],['reflex','Reflex'],['will','Will']],
+  PROF_DEFENSE: [['unarmored','Unarmored'],['light','Light armor'],
+                 ['medium','Medium armor'],['heavy','Heavy armor']],
+};
+
+const AB_SHOW_SCOPE   = new Set(['EFF_SKILL','EFF_SAVE','EFF_AC','EFF_INIT','EFF_ATK','EFF_DMG','EFF_SPELLDC','EFF_RESIST']);
+const AB_SHOW_VAL     = new Set([...AB_SHOW_SCOPE,'SPEED','HP','MOVEMENT']);
+const AB_SHOW_BTYPE   = new Set(['EFF_SKILL','EFF_SAVE','EFF_AC','EFF_INIT','EFF_ATK','EFF_DMG','EFF_SPELLDC']);
+const AB_SHOW_TARGET  = new Set(['EFF_SKILL','EFF_SAVE','EFF_RESIST','EFF_ATK','EFF_DMG','PROF_SKILL','PROF_SAVE','PROF_DEFENSE']);
+const AB_SHOW_TEXT    = new Set(['SENSES']);
+const AB_SHOW_RANK    = new Set(['PROF_SKILL','PROF_SAVE','PROF_DEFENSE']);
+const AB_SHOW_MOVTYPE = new Set(['MOVEMENT']);
+
+function abEl(id)  { return document.getElementById(id); }
+function abGet(id) { return abEl(id)?.value ?? ''; }
+
+function abShow(rowId, visible) {
+  const el = abEl(rowId);
+  if (el) el.style.display = visible ? '' : 'none';
+}
+
+function abPopulateTarget(kw) {
+  const sel = abEl('ab-target');
+  sel.innerHTML = '';
+  for (const [val, label] of (AB_TARGET_OPTS[kw] ?? [])) {
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = label; sel.appendChild(opt);
+  }
+}
+
+function abUpdateFields() {
+  const kw = abGet('ab-kw');
+  abShow('ab-row-scope',   AB_SHOW_SCOPE.has(kw));
+  abShow('ab-row-val',     AB_SHOW_VAL.has(kw));
+  abShow('ab-row-btype',   AB_SHOW_BTYPE.has(kw));
+  abShow('ab-row-target',  AB_SHOW_TARGET.has(kw));
+  abShow('ab-row-text',    AB_SHOW_TEXT.has(kw));
+  abShow('ab-row-rank',    AB_SHOW_RANK.has(kw));
+  abShow('ab-row-movtype', AB_SHOW_MOVTYPE.has(kw));
+
+  // Contextual labels
+  const valLabels = { SPEED:'Bonus (ft)', HP:'Per level', MOVEMENT:'Speed (ft)' };
+  abEl('ab-val-label').textContent  = valLabels[kw] ?? 'Value';
+  abEl('ab-text-label').textContent = kw === 'MOVEMENT' ? 'Type' : 'Sense';
+
+  abPopulateTarget(kw);
+  abUpdateGenerated();
+}
+
+function abBuildEntry() {
+  const kw    = abGet('ab-kw');
+  const scope = abGet('ab-scope');
+  const val   = parseInt(abGet('ab-val')) || 0;
+  const btype = abGet('ab-btype');
+  const tgt   = abGet('ab-target');
+  const text  = abGet('ab-text').trim();
+  const rank  = abGet('ab-rank');
+  const movt  = abGet('ab-movtype');
+
+  const sgn    = v => v >= 0 ? `+${v}` : `${v}`;
+  const btSfx  = btype ? ` ${btype}` : '';
+  const tgtSfx = tgt ? `, ${tgt}` : '';
+
+  switch (kw) {
+    case 'EFF_SKILL':    return `[EFFECT ${scope} SKILL: ${sgn(val)}${btSfx}${tgtSfx}]`;
+    case 'EFF_SAVE':     return `[EFFECT ${scope} SAVE: ${sgn(val)}${btSfx}${tgtSfx}]`;
+    case 'EFF_AC':       return `[EFFECT ${scope} AC: ${sgn(val)}${btSfx}]`;
+    case 'EFF_INIT':     return `[EFFECT ${scope} INIT: ${sgn(val)}${btSfx}]`;
+    case 'EFF_ATK':      return `[EFFECT ${scope} ATK: ${sgn(val)}${btSfx}${tgt ? ', ' + tgt : ''}]`;
+    case 'EFF_DMG':      return `[EFFECT ${scope} DMG: ${val}${btSfx}${tgt ? ', ' + tgt : ''}]`;
+    case 'EFF_SPELLDC':  return `[EFFECT ${scope} SPELLDC: ${sgn(val)}${btSfx}]`;
+    case 'EFF_RESIST':   return `[EFFECT ${scope} RESIST: ${val}${tgt ? ' ' + tgt : ''}]`;
+    case 'SPEED':        return `[SPEED ${sgn(val)}]`;
+    case 'HP':           return `[HP miscperlevel ${sgn(val)}]`;
+    case 'SENSES':       return text ? `[SENSES ${text}]` : '';
+    case 'MOVEMENT':     return `[MOVEMENT ${movt} ${val}]`;
+    case 'PROF_SKILL':   return tgt ? `[SKILL ${tgt} ${rank}]` : '';
+    case 'PROF_SAVE':    return tgt ? `[${tgt} ${rank}]` : '';
+    case 'PROF_DEFENSE': return tgt ? `[DEFENSE ${tgt} ${rank}]` : '';
+    default: return '';
+  }
+}
+
+function abUpdateGenerated() {
+  abEl('ab-generated').textContent = abBuildEntry() || '—';
+}
+
+['ab-kw','ab-scope','ab-movtype','ab-target','ab-btype','ab-rank'].forEach(id => {
+  abEl(id)?.addEventListener('change', () => { if (id === 'ab-kw') abUpdateFields(); else abUpdateGenerated(); });
+});
+['ab-val','ab-text'].forEach(id => {
+  abEl(id)?.addEventListener('input', abUpdateGenerated);
+});
+
+abEl('ab-add').addEventListener('click', () => {
+  const entry = abBuildEntry();
+  if (!entry) return;
+  const ta = abEl('auto-edit-textarea');
+  ta.value = (ta.value + entry).trim();
+  updateAutoEditPreview(ta.value);
+});
+
+abUpdateFields();   // set initial visibility
+
+// ── XML edit & export ─────────────────────────────────────────────────────────
+
+function findXmlNodeByName(name) {
+  if (!currentChar) return null;
+  // Feats, class features, inventory items
+  for (const listPath of ['featlist', 'specialabilitylist', 'inventorylist']) {
+    for (const node of children(currentChar, listPath)) {
+      if (txt(node, 'name') === name) return node;
+    }
+  }
+  // Spells (nested: spellset → levels → spells → each spell)
+  for (const sc of children(currentChar, 'spellset')) {
+    for (const lv of children(sc, 'levels')) {
+      for (const sp of children(lv, 'spells')) {
+        if (txt(sp, 'name') === name) return sp;
+      }
+    }
+  }
+  return null;
+}
+
+function setXmlAutomation(name, value) {
+  const node = findXmlNodeByName(name);
+  if (!node) return false;
+  let autoEl = findPath(node, 'automation');
+  if (!autoEl) {
+    autoEl = currentXmlDoc.createElement('automation');
+    autoEl.setAttribute('type', 'string');
+    node.appendChild(autoEl);
+  }
+  autoEl.textContent = value;
+  return true;
+}
+
+function downloadXml() {
+  if (!currentXmlDoc) return;
+  const xmlStr = new XMLSerializer().serializeToString(currentXmlDoc);
+  const blob = new Blob([xmlStr], { type: 'application/xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${currentFilename}_modified.xml`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function rerender() {
+  if (!currentChar) return;
+  // Preserve the active tab across re-render
+  const activeIdx = document.querySelector('#rendered .tab-btn.active')?.dataset.tab ?? '0';
+  currentMd = render(currentChar);
+  document.getElementById('rendered').innerHTML = sanitizeHtml(marked.parse(currentMd));
+  makeSortable();
+  GLOSSARY = buildGlossary(currentChar, parseSkills(currentChar));
+  linkifyGlossary();
+  makeCollapsible();
+  linkifySkillsTable();
+  makeTabs();
+  makeSpellSubTabs();
+  // Rebuild per-tab search bars (tab panels are new DOM nodes after rerender)
+  Object.keys(tabFilters).forEach(k => delete tabFilters[k]);
+  makeSearchBars();
+  applyFilters();
+  document.getElementById('btn-collapse').textContent = 'Collapse all';
+  document.getElementById('raw-pre').textContent = currentMd;
+  populateCharHeader(currentChar);
+  if (activeIdx !== '0') {
+    const btn = document.querySelector(`#rendered .tab-btn[data-tab="${activeIdx}"]`);
+    if (btn) {
+      document.querySelectorAll('#rendered .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('#rendered .tab-panel').forEach(p => {
+        p.style.display = p.dataset.tab === activeIdx ? '' : 'none';
+      });
+    }
+  }
+}
+
+// ── Automation editor dialog ──────────────────────────────────────────────────
+
+const autoEditDialog = document.getElementById('auto-edit-dialog');
+let autoEditName = '';
+
+function openAutoEditDialog(name, currentAuto) {
+  autoEditName = name;
+  document.getElementById('auto-edit-title').textContent = `Edit Automation — ${name}`;
+  const ta = document.getElementById('auto-edit-textarea');
+  ta.value = currentAuto || '';
+  updateAutoEditPreview(currentAuto || '');
+  autoEditDialog.showModal();
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function updateAutoEditPreview(val) {
+  const prev = document.getElementById('auto-edit-preview');
+  prev.innerHTML = sanitizeHtml(
+    val.trim() ? automationToHtml(val) : '<em>No automation set.</em>'
+  );
+}
+
+document.getElementById('auto-edit-textarea')
+  .addEventListener('input', e => updateAutoEditPreview(e.target.value));
+
+document.getElementById('auto-edit-cancel')
+  .addEventListener('click', () => autoEditDialog.close());
+
+document.getElementById('auto-edit-save')
+  .addEventListener('click', () => {
+    const val = document.getElementById('auto-edit-textarea').value.trim();
+    if (setXmlAutomation(autoEditName, val)) {
+      autoEditDialog.close();
+      rerender();
+    } else {
+      alert(`Could not find "${autoEditName}" in the character data.`);
+    }
+  });
+
+function toggleView() {
+  const rendered = document.getElementById('rendered');
+  const rawView  = document.getElementById('raw-view');
+  const btn      = document.getElementById('btn-raw');
+  const showing  = rawView.style.display !== 'none';
+  rawView.style.display  = showing ? 'none'  : 'block';
+  rendered.style.display = showing ? 'block' : 'none';
+  btn.textContent = showing ? 'Raw Markdown' : 'Rendered View';
+}
+
+function copyMd() {
+  navigator.clipboard.writeText(currentMd).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy .md', 1500);
+  });
+}
+
+function downloadMd() {
+  const blob = new Blob([currentMd], { type: 'text/markdown' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `${currentFilename}_sheet.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function reset() {
+  document.getElementById('upload-panel').style.display  = '';
+  document.getElementById('output-panel').style.display  = 'none';
+  document.getElementById('version-bar').style.display   = 'none';
+  document.getElementById('char-header').style.display   = 'none';
+  document.getElementById('gloss-hint').style.display    = 'none';
+  document.getElementById('file-input').value = '';
+  document.title = 'Folio · PF2e Character Viewer';
+  currentLoadedFile = '';
+  renderRecentPills();
+  currentMd     = '';
+  currentXmlDoc = null;
+  currentChar   = null;
+  GLOSSARY = new Map();
+  glossPopup.style.display = 'none';
+  // Reset search state
+  searchGlobal = '';
+  Object.keys(tabFilters).forEach(k => delete tabFilters[k]);
+  const sgWrap = document.getElementById('sg-wrap');
+  if (sgWrap) sgWrap.remove();
+}
+
+function clearGlobalSearch() {
+  searchGlobal = '';
+  const inp = document.getElementById('search-global');
+  if (inp) inp.value = '';
+  applyFilters();
+}
+
+// ── file input events ──────────────────────────────────────────────────────
+// Multiple files: the first is displayed, the rest are parked in "recent
+// characters" so a GM can drop the whole party at once and flip between them.
+function processFiles(files) {
+  const list = [...files];
+  if (!list.length) return;
+  for (const extra of list.slice(1)) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const xml = String(e.target.result);
+      const m = xml.match(/<name\s+type="string">([^<]+)<\/name>/);
+      saveRecent(m ? m[1] : extra.name.replace(/\.[^.]+$/, ''), extra.name, xml);
+    };
+    reader.readAsText(extra);
+  }
+  processFile(list[0]);
+}
+
+document.getElementById('file-input').addEventListener('change', e => {
+  processFiles(e.target.files);
+});
+
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('click', () => document.getElementById('file-input').click());
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',      e  => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  processFiles(e.dataTransfer.files);
+});
+
+// Export dropdown: close on outside click or after choosing an action
+document.addEventListener('click', e => {
+  const menu = document.getElementById('export-menu');
+  if (menu?.open && !menu.contains(e.target)) menu.open = false;
+});
+document.getElementById('export-menu-body').addEventListener('click', () => {
+  document.getElementById('export-menu').open = false;
+});
+
+renderRecentPills();
+</script>
+</body>
+</html>
