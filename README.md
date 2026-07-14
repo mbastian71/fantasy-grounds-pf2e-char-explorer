@@ -35,6 +35,12 @@ Everything runs locally in your browser. Nothing is uploaded anywhere.
 
   It won't catch everything — it's a helper, not a rules engine — but it surfaces the
   common bookkeeping mistakes that quietly break a sheet.
+- **Automation helper.** A guided builder writes Fantasy Grounds effect/automation
+  strings for you — skill, save, AC, initiative, attack, damage, spell-DC and
+  resistance bonuses, plus speed, senses and HP — with a live preview of the exact
+  string. Edit an item's automation, then download the modified `.xml` to re-import
+  into Fantasy Grounds, so the fixes the Data Health report suggests are a couple of
+  clicks away rather than hand-typed.
 - **View or export.** Read it in the browser, flip to raw Markdown, or download the
   sheet as `.md` / the (optionally edited) `.xml`.
 
