@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Defense-in-depth: block external connections (exfiltration) and any non-CDN script.
        The XML is untrusted; sanitization (DOMPurify) is the primary control, this is backup. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <title>Folio · PF2e Character Viewer</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231a1a2e'/%3E%3Ctext x='50' y='72' font-size='62' text-anchor='middle' fill='%23c9b8ff'%3E%E2%97%86%3C/text%3E%3C/svg%3E">
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
@@ -50,6 +50,15 @@
     #drop-zone span { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; }
     #drop-zone p { color: #aaa; margin: 0; }
     #file-input { display: none; }
+
+    #exports-panel { margin: 1rem 0 0.25rem; }
+    .exports-title { color: #aaa; margin: 0 0 0.4rem; font-size: 0.95rem; }
+    .exports-title code { color: #ddd; }
+    #exports-select, #exports-switcher {
+      font: inherit; padding: 0.4rem 0.6rem; border-radius: 6px;
+      background: #1e1e1e; color: #eee; border: 1px solid #444; max-width: 100%;
+    }
+    #exports-switcher { padding: 0.25rem 0.5rem; }
 
     .btn {
       padding: 0.5rem 1.2rem;
@@ -694,6 +703,17 @@
 
   <div id="recent-chars"></div>
 
+  <!-- Auto-selector for characters found in the exports/ folder. Populated on
+       load from the server directory listing (http), or via the folder button
+       (file://). Hidden until at least one valid character is discovered. -->
+  <div id="exports-panel" hidden>
+    <p class="exports-title">📁 Characters in <code>exports/</code></p>
+    <select id="exports-select" aria-label="Choose a character from the exports folder"></select>
+  </div>
+  <input type="file" id="folder-input" webkitdirectory hidden>
+  <button class="btn" id="btn-exports-folder" hidden
+          onclick="document.getElementById('folder-input').click()">Load from exports folder…</button>
+
   <p class="howto">To export from Fantasy Grounds: open the <b>Characters</b> list, right-click your character
   and choose <b>Export</b> (or use <b>/exportchar</b> in chat), then drop the resulting <b>.xml</b> file here.</p>
 </div>
@@ -703,6 +723,7 @@
   <div id="version-bar"></div>
   <div id="toolbar">
     <span class="filename" id="filename-label"></span>
+    <select id="exports-switcher" aria-label="Switch character from exports folder" hidden></select>
     <div id="char-switcher"></div>
     <span id="search-mode">searching all tabs <button onclick="clearGlobalSearch()">✕ clear</button></span>
     <button class="btn btn-secondary" id="btn-collapse" onclick="toggleAllSections()">Collapse all</button>
@@ -4333,6 +4354,7 @@ function reset() {
   document.title = 'Folio · PF2e Character Viewer';
   currentLoadedFile = '';
   renderRecentPills();
+  if (typeof renderExportsUI === 'function') renderExportsUI();
   currentMd     = '';
   currentXmlDoc = null;
   currentChar   = null;
@@ -4394,6 +4416,101 @@ document.getElementById('export-menu-body').addEventListener('click', () => {
 });
 
 renderRecentPills();
+
+// ── Exports folder: auto-selector ────────────────────────────────────────────
+// Loads characters from the exports/ folder. Two modes:
+//   1. Served over http(s): auto-discover on page load via the server's
+//      directory listing, then auto-open the first valid character.
+//   2. Opened as a file:// double-click (fetch is blocked): the user clicks
+//      "Load from exports folder…" and picks the folder (webkitdirectory input).
+// Files can be several MB each, so the parsed characters are kept in memory
+// rather than in localStorage (which saveRecent() uses for its 5-slot cache).
+let exportChars = [];   // [{ label, filename, xml }]
+
+function isValidFgXml(text) {
+  if (/<!DOCTYPE|<!ENTITY/i.test(text.slice(0, 65536))) return false;   // same guard as processXmlText
+  const root = new DOMParser().parseFromString(text, 'application/xml').documentElement;
+  if (!root || root.tagName === 'parsererror' || root.querySelector('parsererror')) return false;
+  return !!root.querySelector('character');
+}
+
+function fgName(text, fallback) {
+  const m = text.match(/<name\s+type="string">([^<]+)<\/name>/);
+  return m ? m[1].trim() : fallback;
+}
+
+function renderExportsUI() {
+  const panel = document.getElementById('exports-panel');
+  const sel   = document.getElementById('exports-select');
+  const sw    = document.getElementById('exports-switcher');
+  const opts  = exportChars
+    .map((c, i) => `<option value="${i}">${escHtml(c.label)}</option>`).join('');
+  const has = exportChars.length > 0;
+  panel.hidden = !has;
+  sw.hidden    = !has;
+  sel.innerHTML = opts;
+  sw.innerHTML  = opts;
+  const idx = exportChars.findIndex(c => c.filename === currentLoadedFile);
+  if (idx >= 0) { sel.value = String(idx); sw.value = String(idx); }
+}
+
+function loadExportChar(idx) {
+  const c = exportChars[idx];
+  if (c) processXmlText(c.xml, c.filename);
+  renderExportsUI();
+}
+
+function setExportChars(chars, autoload) {
+  exportChars = chars.sort((a, b) => a.label.localeCompare(b.label));
+  renderExportsUI();
+  if (autoload && exportChars.length) loadExportChar(0);
+}
+
+// Mode 1 — server directory listing.
+async function discoverExports() {
+  let html;
+  try {
+    const res = await fetch('exports/', { cache: 'no-store' });
+    if (!res.ok) return false;
+    html = await res.text();
+  } catch { return false; }          // file:// or blocked — caller shows the folder button
+  const doc   = new DOMParser().parseFromString(html, 'text/html');
+  const names = [...new Set([...doc.querySelectorAll('a[href]')]
+    .map(a => a.getAttribute('href'))
+    .filter(h => h && /\.xml$/i.test(h))
+    .map(h => decodeURIComponent(h.split('/').pop())))];
+  const chars = [];
+  for (const name of names) {
+    try {
+      const t = await (await fetch('exports/' + encodeURIComponent(name), { cache: 'no-store' })).text();
+      if (isValidFgXml(t)) chars.push({ label: fgName(t, name.replace(/\.[^.]+$/, '')), filename: name, xml: t });
+    } catch {}
+  }
+  if (!chars.length) return false;
+  setExportChars(chars, true);
+  return true;
+}
+
+// Mode 2 — user-picked folder (works over file://).
+async function loadFolder(fileList) {
+  const files = [...fileList].filter(f => /\.xml$/i.test(f.name));
+  const chars = [];
+  for (const f of files) {
+    const t = await f.text();
+    if (isValidFgXml(t)) chars.push({ label: fgName(t, f.name.replace(/\.[^.]+$/, '')), filename: f.name, xml: t });
+  }
+  if (!chars.length) { alert('No valid Fantasy Grounds character XML found in that folder.'); return; }
+  setExportChars(chars, true);
+}
+
+document.getElementById('exports-select').addEventListener('change', e => loadExportChar(+e.target.value));
+document.getElementById('exports-switcher').addEventListener('change', e => loadExportChar(+e.target.value));
+document.getElementById('folder-input').addEventListener('change', e => loadFolder(e.target.files));
+
+// On load: try auto-discovery; if nothing is found, offer the folder button.
+discoverExports().then(found => {
+  if (!found) document.getElementById('btn-exports-folder').hidden = false;
+});
 </script>
 </body>
 </html>
