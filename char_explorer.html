@@ -704,15 +704,18 @@
   <div id="recent-chars"></div>
 
   <!-- Auto-selector for characters found in the exports/ folder. Populated on
-       load from the server directory listing (http), or via the folder button
+       load from the server directory listing (http), or via the button below
        (file://). Hidden until at least one valid character is discovered. -->
   <div id="exports-panel" hidden>
     <p class="exports-title">📁 Characters in <code>exports/</code></p>
     <select id="exports-select" aria-label="Choose a character from the exports folder"></select>
   </div>
-  <input type="file" id="folder-input" webkitdirectory hidden>
+  <!-- file:// fallback: a plain multi-file picker (webkitdirectory hides the
+       individual files, which confuses folder selection). Point it at your
+       exports folder and select the .xml files. -->
+  <input type="file" id="folder-input" accept=".xml,.db" multiple hidden>
   <button class="btn" id="btn-exports-folder" hidden
-          onclick="document.getElementById('folder-input').click()">Load from exports folder…</button>
+          onclick="document.getElementById('folder-input').click()">Select character XML files…</button>
 
   <p class="howto">To export from Fantasy Grounds: open the <b>Characters</b> list, right-click your character
   and choose <b>Export</b> (or use <b>/exportchar</b> in chat), then drop the resulting <b>.xml</b> file here.</p>
@@ -943,6 +946,8 @@ function parseBasic(char) {
     size:      txt(char, 'size'),
     speed:     speedNode ? num(speedNode, 'total') : 0,
     traits:    txt(char, 'traits'),
+    senses:    txt(char, 'senses'),
+    heroPoints:num(char, 'hero'),
     notes:     txt(char, 'notes').replace(/\\n/g, '\n'),
   };
 }
@@ -1505,7 +1510,13 @@ function checkArmorCheckPenalty(char, skills) {
   ];
 }
 
-const BUFF_STAT_RE = /(?:SKILL|ATK|SAVE|AC|SPEED|RESIST|INIT|DMG|VISION|DARKVISION|TEMP|SPELLDC):\s*\+?(\d+)/gi;
+// Effect tags that mark a positive buff. The bonus tags (ABIL/STR/CON/DEX/INT/
+// WIS/CHA/FORT/REF/WILL/PERC/HEAL/INIT/ATK/AC/SAVE/SKILL/DMG) are the ruleset's
+// own "bonuscomps" list (PFRPG2 scripts/data_common.lua), so buffs that grant a
+// specific save (FORT/REF/WILL), ability, or Perception bonus are recognised —
+// not just the generic SAVE/SKILL tags. SPEED/RESIST/VISION/DARKVISION/TEMP/
+// SPELLDC are additional FG tags that also represent buffs.
+const BUFF_STAT_RE = /(?:SKILL|PERC|ATK|SAVE|FORT|REF|WILL|AC|ABIL|STR|CON|DEX|INT|WIS|CHA|SPEED|RESIST|INIT|DMG|HEAL|DARKVISION|VISION|TEMP|SPELLDC):\s*\+?(\d+)/gi;
 
 function isStatBuff(effects) {
   if (/\bHeal:/.test(effects)) return true;
@@ -2224,15 +2235,18 @@ function checkPassiveBonusStacking(inventory) {
 }
 
 // Signature-spell bookkeeping check for spontaneous casters.
-// PF2e rules (Archives of Nethys): Sorcerer, Bard, Oracle and Psychic choose
-// ONE signature spell per spell rank of their class repertoire, castable at
-// any rank they have slots for. Spellcasting archetypes with a repertoire get
-// only 1/2/3 signature spells total (Basic/Expert/Master Spellcasting at
-// levels 6/12/18), so the per-rank rule is applied only to spellsets matching
-// one of the character's own classes. Since FG has no signature automation,
-// players keep manual heightened copies — detected here as contiguous clone
-// runs (see dedupeSignatureClones), independent of any naming markers.
-const SIG_SPELL_CLASSES = ['sorcerer', 'bard', 'oracle', 'psychic'];
+// PF2e Remastered: the spontaneous full casters — Sorcerer, Bard, Oracle,
+// Psychic and Summoner — choose ONE signature spell per spell rank of their
+// class repertoire, castable at any rank they have slots for. Spellcasting
+// archetypes with a repertoire get only 1/2/3 signature spells total
+// (Basic/Expert/Master Spellcasting at levels 6/12/18), so the strict
+// one-per-rank rule is applied only to spellsets matching one of the
+// character's own classes. FG has no signature marker, so players keep manual
+// heightened copies — detected as contiguous clone runs (see
+// dedupeSignatureClones), independent of any naming markers. Whether a set
+// SHOULD have signatures is taken from FG's own castertype="spontaneous" flag,
+// which also covers archetype repertoires and homebrew class names.
+const SIG_SPELL_CLASSES = ['sorcerer', 'bard', 'oracle', 'psychic', 'summoner'];
 
 function checkSignatureSpells(char, spellsets) {
   const classNames = children(char, 'classes').map(c => txt(c, 'name').toLowerCase());
@@ -2242,6 +2256,10 @@ function checkSignatureSpells(char, spellsets) {
     if (!info || info.maxRank < 1) continue;
     const lbl = ss.label.toLowerCase();
     const sigClass = SIG_SPELL_CLASSES.find(c => lbl.includes(c));
+    // Only class-named spontaneous repertoires are checked. Archetype
+    // repertoires (e.g. "Halcyon Speaker") are also spontaneous but follow
+    // different signature rules — and a player may track their signatures in
+    // their main class set instead — so flagging them produces false positives.
     if (!sigClass) continue;
     const isClassSet = classNames.some(c => c.includes(sigClass));
     const runs = info.groups.filter(g => g.isRun);
@@ -2268,26 +2286,39 @@ function checkSignatureSpells(char, spellsets) {
         );
     }
 
-    // 3. Exactly one signature spell per rank — only for the character's own class
-    if (isClassSet) {
-      const byRank = {};
-      for (const g of runs) {
-        const r = g.baseRank ?? g.buckets[0];
-        (byRank[r] ??= []).push(g.name);
-      }
-      const zero = [];
-      for (let r = 1; r < info.maxRank; r++) {
-        const names = byRank[r] ?? [];
-        if (names.length === 0) zero.push(r);
-        else if (names.length > 1)
-          issues.push(`  ⚠ **${ss.label}**: ${names.length} signature spells detected at rank ${r} (${names.join(', ')}) — only one is allowed per rank.`);
-      }
-      if (zero.length)
+    // 3. Signature coverage — only for the character's OWN spontaneous class.
+    // maxRank < 2 can't be verified (a lone top rank needs no cloned copies).
+    if (isClassSet && info.maxRank >= 2) {
+      if (runs.length === 0) {
+        // Nothing detectable at all — the case Fantasy Grounds can't express,
+        // e.g. signatures marked by a suffix ("Fireball (S7)") or a single note
+        // instead of a heightened copy per rank.
         issues.push(
-          `  ⚠ **${ss.label}**: no signature spell detected at rank${zero.length > 1 ? 's' : ''} ${zero.join(', ')} — ` +
-          `${titleCase(sigClass)}s choose one signature spell per rank. ` +
-          `(Detected via manual heightened copies at consecutive ranks; rank ${info.maxRank} can't be verified this way since a top-rank signature spell needs no copies.)`
+          `  ⚠ **${ss.label}**: no signature spells could be detected. ${titleCase(sigClass)}s choose ` +
+          `one signature spell per spell rank, but Fantasy Grounds has no signature marker. If you have ` +
+          `signatures, keep a heightened copy of each at every castable rank so they're recognised here ` +
+          `(see the signature-spell tip in the README).`
         );
+      } else {
+        const byRank = {};
+        for (const g of runs) {
+          const r = g.baseRank ?? g.buckets[0];
+          (byRank[r] ??= []).push(g.name);
+        }
+        const zero = [];
+        for (let r = 1; r < info.maxRank; r++) {
+          const names = byRank[r] ?? [];
+          if (names.length === 0) zero.push(r);
+          else if (names.length > 1)
+            issues.push(`  ⚠ **${ss.label}**: ${names.length} signature spells detected at rank ${r} (${names.join(', ')}) — only one is allowed per rank.`);
+        }
+        if (zero.length)
+          issues.push(
+            `  ⚠ **${ss.label}**: no signature spell detected at rank${zero.length > 1 ? 's' : ''} ${zero.join(', ')} — ` +
+            `${titleCase(sigClass)}s choose one signature spell per rank. ` +
+            `(Detected via manual heightened copies at consecutive ranks; rank ${info.maxRank} can't be verified this way since a top-rank signature spell needs no copies.)`
+          );
+      }
     }
   }
   return issues;
@@ -2390,6 +2421,8 @@ function render(char) {
   if (basic.background) out.push(`**Background:** ${basic.background}`);
   if (basic.traits)     out.push(`**Traits:** ${basic.traits}`);
   out.push(`**Size:** ${basic.size} | **Speed:** ${basic.speed} ft`);
+  if (basic.senses) out.push(`**Senses:** ${basic.senses}`);
+  out.push(`**Hero Points:** ${'◆'.repeat(basic.heroPoints)}${'◇'.repeat(Math.max(0, 3 - basic.heroPoints))} (${basic.heroPoints})`);
   out.push('', '---', '');
 
   // ── abilities ──────────────────────────────────────────────────────────────
@@ -2857,6 +2890,7 @@ function populateCharHeader(char) {
     { label: 'Will', val: sign(def.saves.will?.total      ?? 0), cls: 'save' },
     { label: 'Per',  val: sign(def.init_perc || 0),              cls: '' },
     { label: 'Spd',  val: `${basic.speed} ft`,                   cls: '' },
+    { label: 'Hero', val: `${'◆'.repeat(basic.heroPoints)}${'◇'.repeat(Math.max(0, 3 - basic.heroPoints))}`, cls: '' },
   ];
   // If Stealth initiative beats Perception, surface it — Per alone misleads.
   if ((def.init_stealth ?? 0) > (def.init_perc ?? 0))
@@ -4422,7 +4456,7 @@ renderRecentPills();
 //   1. Served over http(s): auto-discover on page load via the server's
 //      directory listing, then auto-open the first valid character.
 //   2. Opened as a file:// double-click (fetch is blocked): the user clicks
-//      "Load from exports folder…" and picks the folder (webkitdirectory input).
+//      "Select character XML files…" and picks the .xml files from the folder.
 // Files can be several MB each, so the parsed characters are kept in memory
 // rather than in localStorage (which saveRecent() uses for its 5-slot cache).
 let exportChars = [];   // [{ label, filename, xml }]
@@ -4491,7 +4525,8 @@ async function discoverExports() {
   return true;
 }
 
-// Mode 2 — user-picked folder (works over file://).
+// Mode 2 — user-picked files (works over file://). Select the .xml files from
+// your exports folder; a whole party at once is fine.
 async function loadFolder(fileList) {
   const files = [...fileList].filter(f => /\.xml$/i.test(f.name));
   const chars = [];
@@ -4499,13 +4534,16 @@ async function loadFolder(fileList) {
     const t = await f.text();
     if (isValidFgXml(t)) chars.push({ label: fgName(t, f.name.replace(/\.[^.]+$/, '')), filename: f.name, xml: t });
   }
-  if (!chars.length) { alert('No valid Fantasy Grounds character XML found in that folder.'); return; }
+  if (!chars.length) { alert('No valid Fantasy Grounds character XML found in the selected files.'); return; }
   setExportChars(chars, true);
 }
 
 document.getElementById('exports-select').addEventListener('change', e => loadExportChar(+e.target.value));
 document.getElementById('exports-switcher').addEventListener('change', e => loadExportChar(+e.target.value));
-document.getElementById('folder-input').addEventListener('change', e => loadFolder(e.target.files));
+document.getElementById('folder-input').addEventListener('change', e => {
+  loadFolder(e.target.files);
+  e.target.value = '';   // allow re-selecting the same files later
+});
 
 // On load: try auto-discovery; if nothing is found, offer the folder button.
 discoverExports().then(found => {
