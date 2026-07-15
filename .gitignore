@@ -1,2 +1,4 @@
-# Fantasy Grounds character exports (local data, not part of the app)
-exports/
+# Fantasy Grounds character exports (local data, not part of the app).
+# Ignore everything in exports/ except Tevok, kept as a sample character.
+exports/*
+!exports/Tevok.xml
