@@ -3991,13 +3991,15 @@ let glossHideTimer = null;
 
 function positionGlossPopup(anchor) {
   const r = anchor.getBoundingClientRect();
-  const margin = 8, gap = 6;
+  const margin = 8, gap = 6, MIN_USABLE = 160;
   const spaceBelow = window.innerHeight - r.bottom - margin;
   const spaceAbove = r.top - margin;
-  // Place on whichever side has more room, and cap the height to that side so
-  // the popup can never grow back over the anchor that triggered it.
-  const below = spaceBelow >= spaceAbove;
-  glossPopup.style.maxHeight = (Math.max(spaceBelow, spaceAbove) - gap) + 'px';
+  // Prefer below the anchor so the area above stays clear for hovering other
+  // links; only flip above when there's too little room below to be usable.
+  // Either way the height is capped to the chosen side, so the popup never
+  // grows back over the anchor that triggered it.
+  const below = spaceBelow >= MIN_USABLE || spaceBelow >= spaceAbove;
+  glossPopup.style.maxHeight = ((below ? spaceBelow : spaceAbove) - gap) + 'px';
 
   const pw = glossPopup.offsetWidth, ph = glossPopup.offsetHeight;
   let left = r.left;
