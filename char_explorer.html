@@ -3867,17 +3867,25 @@ const GLOSS_SECTIONS = new Set([
   'activities', 'skills', 'weapons',
 ]);
 
-function linkifyGlossary() {
-  if (!GLOSSARY.size) return;
+// Cached matcher built from the current GLOSSARY keys. Reset to null whenever
+// GLOSSARY is (re)assigned so it rebuilds for the next character.
+let GLOSS_RE = null;
+function ensureGlossRe() {
+  if (GLOSS_RE || !GLOSSARY.size) return GLOSS_RE;
   const keys = [...GLOSSARY.keys()]
     .sort((a, b) => b.length - a.length)
     .map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  let re;
   try {
-    re = new RegExp("(?<![\\w'])(" + keys.join('|') + ")(?![\\w'])", 'gi');
+    GLOSS_RE = new RegExp("(?<![\\w'])(" + keys.join('|') + ")(?![\\w'])", 'gi');
   } catch {
-    re = new RegExp("\\b(" + keys.join('|') + ")\\b", 'gi');   // fallback: no look-behind
+    GLOSS_RE = new RegExp("\\b(" + keys.join('|') + ")\\b", 'gi');   // fallback: no look-behind
   }
+  return GLOSS_RE;
+}
+
+function linkifyGlossary() {
+  const re = ensureGlossRe();
+  if (!re) return;
 
   const root = document.getElementById('rendered');
   let active = false;
@@ -3890,7 +3898,19 @@ function linkifyGlossary() {
   for (const el of targets) linkifyElement(el, re);
 }
 
-function linkifyElement(el, re) {
+// Linkify the description body inside a hover popup or modal so entity
+// mentions become navigable .gloss links. Scoped to .gp-body so meta rows,
+// trait chips, and automation code are left untouched. selfKey (optional)
+// skips linking the entry to its own name.
+function linkifyEntryBody(container, selfKey) {
+  const re = ensureGlossRe();
+  if (!re) return;
+  const bodyEl = container.querySelector('.gp-body');
+  if (!bodyEl) return;
+  linkifyElement(bodyEl, re, selfKey);
+}
+
+function linkifyElement(el, re, selfKey) {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
     acceptNode(n) {
       const p = n.parentElement;
@@ -3913,6 +3933,7 @@ function linkifyElement(el, re) {
       const matched = m[1];
       const key = glossKey(matched);
       if (!GLOSSARY.has(key)) continue;
+      if (selfKey && key === selfKey) continue;   // don't link an entry to itself
       // Skip ALL-CAPS tokens (FG trait/keyword like FEAR) unless the entry name is itself caps.
       if (matched.length > 2 && matched === matched.toUpperCase() &&
           GLOSSARY.get(key).name !== GLOSSARY.get(key).name.toUpperCase()) continue;
@@ -3969,14 +3990,22 @@ const glossPopup = document.getElementById('gloss-popup');
 let glossHideTimer = null;
 
 function positionGlossPopup(anchor) {
-  const r  = anchor.getBoundingClientRect();
+  const r = anchor.getBoundingClientRect();
+  const margin = 8, gap = 6;
+  const spaceBelow = window.innerHeight - r.bottom - margin;
+  const spaceAbove = r.top - margin;
+  // Place on whichever side has more room, and cap the height to that side so
+  // the popup can never grow back over the anchor that triggered it.
+  const below = spaceBelow >= spaceAbove;
+  glossPopup.style.maxHeight = (Math.max(spaceBelow, spaceAbove) - gap) + 'px';
+
   const pw = glossPopup.offsetWidth, ph = glossPopup.offsetHeight;
   let left = r.left;
-  let top  = r.bottom + 6;
-  if (left + pw > window.innerWidth - 12)  left = window.innerWidth - pw - 12;
-  if (top  + ph > window.innerHeight - 12) top  = r.top - ph - 6;
-  glossPopup.style.left = Math.max(12, left) + 'px';
-  glossPopup.style.top  = Math.max(12, top)  + 'px';
+  if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+  const top = below ? r.bottom + gap : r.top - ph - gap;
+
+  glossPopup.style.left = Math.max(margin, left) + 'px';
+  glossPopup.style.top  = Math.max(margin, top)  + 'px';
 }
 
 function showGlossPopup(anchor) {
@@ -3984,7 +4013,8 @@ function showGlossPopup(anchor) {
   if (!entry) return;
   glossPopup.innerHTML = sanitizeHtml(glossEntryHtml(entry, true));
   glossPopup.style.display = 'block';
-  positionGlossPopup(anchor);
+  linkifyEntryBody(glossPopup, anchor.dataset.key);   // clickable mentions in the popup
+  positionGlossPopup(anchor);   // after linkify so height is measured correctly
 }
 
 const glossModal = document.getElementById('gloss-modal');
@@ -4011,6 +4041,7 @@ function openGlossModal(key) {
     h += `<div class="gp-auto"><b>Automation:</b>${automationToHtml(e.automation)}</div>`;
 
   content.innerHTML = sanitizeHtml(h);
+  linkifyEntryBody(content, key);   // make entity mentions in the body clickable
 
   // Edit button (feats, class features, inventory items)
   if (e.editable) {
@@ -4021,7 +4052,10 @@ function openGlossModal(key) {
     editArea.innerHTML = '';
   }
 
-  glossModal.showModal();
+  // Calling showModal() on an already-open dialog throws; when navigating
+  // between entries in place we just repopulate the content above.
+  if (!glossModal.open) glossModal.showModal();
+  content.scrollTop = 0;
 }
 
 (() => {
@@ -4070,6 +4104,13 @@ glossModal.addEventListener('click', e => {
   if (editBtn) {
     glossModal.close();
     openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto);
+    return;
+  }
+  // Internal cross-reference: navigate the modal to that entry in place.
+  const a = e.target.closest('.gloss');
+  if (a) {
+    e.preventDefault();
+    openGlossModal(a.dataset.key);
   }
 });
 
@@ -4198,6 +4239,7 @@ function processXmlText(xmlText, fileName) {
       document.getElementById('rendered').innerHTML = sanitizeHtml(marked.parse(currentMd));
       makeSortable();
       GLOSSARY = buildGlossary(char, parseSkills(char));
+      GLOSS_RE = null;
       linkifyGlossary();
       makeCollapsible();
       linkifySkillsTable();
@@ -4406,6 +4448,7 @@ function rerender() {
   document.getElementById('rendered').innerHTML = sanitizeHtml(marked.parse(currentMd));
   makeSortable();
   GLOSSARY = buildGlossary(currentChar, parseSkills(currentChar));
+  GLOSS_RE = null;
   linkifyGlossary();
   makeCollapsible();
   linkifySkillsTable();
@@ -4511,6 +4554,7 @@ function reset() {
   currentXmlDoc = null;
   currentChar   = null;
   GLOSSARY = new Map();
+  GLOSS_RE = null;
   glossPopup.style.display = 'none';
   // Reset search state
   searchGlobal = '';
