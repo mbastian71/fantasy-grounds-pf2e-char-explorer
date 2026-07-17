@@ -1309,7 +1309,10 @@ function parseFeats(char) {
 function parseSpecialAbilities(char) {
   return children(char, 'specialabilitylist').flatMap(sa => {
     const name = txt(sa, 'name');
-    return name ? [{ name, level: num(sa, 'level') }] : [];
+    // Archetype-granted features (e.g. a bloodline/muse) often carry only
+    // <level_applied> — the character level they were gained — with no <level>.
+    // Fall back to it (as feats do) so they aren't shown as "—" and mis-sorted.
+    return name ? [{ name, level: num(sa, 'level_applied') || num(sa, 'level') }] : [];
   });
 }
 
@@ -2793,7 +2796,11 @@ function render(char) {
   // ── class features ─────────────────────────────────────────────────────────
   out.push('## Class Features', '');
   if (specAbs.length)
-    out.push(mdTable(['Level', 'Feature'], specAbs.map(sa => [String(sa.level || '—'), sa.name]), ['r', 'l']));
+    out.push(mdTable(
+      ['Level', 'Feature'],
+      [...specAbs].sort((a, b) => a.level - b.level).map(sa => [String(sa.level || '—'), sa.name]),
+      ['r', 'l']
+    ));
   out.push('', '---', '');
 
   // ── feats ──────────────────────────────────────────────────────────────────
@@ -3745,7 +3752,7 @@ function buildGlossary(char, skills = []) {
     const name = txt(sa, 'name');
     if (!name) continue;
     const meta = [];
-    const lv = num(sa, 'level');
+    const lv = num(sa, 'level_applied') || num(sa, 'level');
     if (lv) meta.push(['Level', String(lv)]);
     metaPush(meta, sa, [['Category','subcategory'], ['Traits','traits']]);
     const body = fgFieldHtml(sa, 'text');
@@ -3992,18 +3999,21 @@ let glossHideTimer = null;
 function positionGlossPopup(anchor) {
   const r = anchor.getBoundingClientRect();
   const margin = 8, gap = 6, MIN_USABLE = 160;
-  const spaceBelow = window.innerHeight - r.bottom - margin;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const spaceBelow = vh - r.bottom - margin;
   const spaceAbove = r.top - margin;
-  // Prefer below the anchor so the area above stays clear for hovering other
-  // links; only flip above when there's too little room below to be usable.
-  // Either way the height is capped to the chosen side, so the popup never
-  // grows back over the anchor that triggered it.
+  // Prefer below the anchor; flip above only when there's too little room below.
+  // Height is capped to the chosen side so the popup never grows over the anchor
+  // that triggered it (which keeps the link itself hoverable/clickable).
   const below = spaceBelow >= MIN_USABLE || spaceBelow >= spaceAbove;
   glossPopup.style.maxHeight = ((below ? spaceBelow : spaceAbove) - gap) + 'px';
 
   const pw = glossPopup.offsetWidth, ph = glossPopup.offsetHeight;
+  // Anchor the popup's left edge to the link's LEFT edge (not its right), so its
+  // horizontal position stays consistent regardless of the link's text length —
+  // links sharing a table column all get the popup in the same place.
   let left = r.left;
-  if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+  if (left + pw > vw - margin) left = vw - pw - margin;
   const top = below ? r.bottom + gap : r.top - ph - gap;
 
   glossPopup.style.left = Math.max(margin, left) + 'px';
@@ -4057,7 +4067,7 @@ function openGlossModal(key) {
   // Calling showModal() on an already-open dialog throws; when navigating
   // between entries in place we just repopulate the content above.
   if (!glossModal.open) glossModal.showModal();
-  content.scrollTop = 0;
+  glossModal.scrollTop = 0;   // #gloss-modal is the scroll container; reset on navigate
 }
 
 (() => {
