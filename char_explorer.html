@@ -736,13 +736,13 @@
     #rendered table.sp-tbl td { padding: 0.3rem 0.6rem; border-left: none; border-right: none; }
     #rendered table.sp-tbl th { border-left: none; border-right: none; }
     #rendered table.sp-tbl td, #rendered table.sp-tbl th { overflow-wrap: anywhere; }
-    #rendered table.sp-tbl col.spc-act  { width: 3.4rem; }
+    #rendered table.sp-tbl col.spc-act  { width: 4.7rem; }
     #rendered table.sp-tbl col.spc-name { width: 24%; }
     #rendered table.sp-tbl col.spc-trait{ width: 29%; }
     #rendered table.sp-tbl col.spc-range{ width: 16%; }
     #rendered table.sp-tbl col.spc-dur  { width: 15%; }
     #rendered table.sp-tbl col.spc-save { width: 9%; }
-    #rendered table.sp-tbl td.sp-act-cell { text-align: center; }
+    #rendered table.sp-tbl td.sp-act-cell { text-align: center; white-space: nowrap; overflow-wrap: normal; }
     #rendered tr.sp-unprep td { opacity: 0.42; }
     #rendered tr.sp-unprep td:first-child::after {
       content: ' not prepared'; font-size: 0.64rem; color: #b88;
@@ -3996,37 +3996,41 @@ function linkifySkillsTable() {
 const glossPopup = document.getElementById('gloss-popup');
 let glossHideTimer = null;
 
-function positionGlossPopup(anchor) {
-  const r = anchor.getBoundingClientRect();
-  const margin = 8, gap = 6, MIN_USABLE = 160;
+function positionGlossPopup(anchor, evt) {
+  const margin = 8, vGap = 6, cursorPad = 16;
   const vw = window.innerWidth, vh = window.innerHeight;
+  const r = anchor.getBoundingClientRect();
+
+  // Vertically: below the link when there's more room below, else above. The
+  // popup sits fully off the link's own line and its height is capped to the
+  // chosen side, so it can never grow back over the link that triggered it.
   const spaceBelow = vh - r.bottom - margin;
   const spaceAbove = r.top - margin;
-  // Prefer below the anchor; flip above only when there's too little room below.
-  // Height is capped to the chosen side so the popup never grows over the anchor
-  // that triggered it (which keeps the link itself hoverable/clickable).
-  const below = spaceBelow >= MIN_USABLE || spaceBelow >= spaceAbove;
-  glossPopup.style.maxHeight = ((below ? spaceBelow : spaceAbove) - gap) + 'px';
+  const below = spaceBelow >= spaceAbove;
+  glossPopup.style.maxHeight = ((below ? spaceBelow : spaceAbove) - vGap) + 'px';
 
   const pw = glossPopup.offsetWidth, ph = glossPopup.offsetHeight;
-  // Anchor the popup's left edge to the link's LEFT edge (not its right), so its
-  // horizontal position stays consistent regardless of the link's text length —
-  // links sharing a table column all get the popup in the same place.
-  let left = r.left;
-  if (left + pw > vw - margin) left = vw - pw - margin;
-  const top = below ? r.bottom + gap : r.top - ph - gap;
 
-  glossPopup.style.left = Math.max(margin, left) + 'px';
-  glossPopup.style.top  = Math.max(margin, top)  + 'px';
+  // Horizontally: offset to the RIGHT of the pointer so the popup is never on
+  // top of the word you're pointing at (this is what makes the link stay
+  // clickable). Flip to the left of the pointer near the right edge. When there
+  // is no pointer (keyboard focus), fall back to the link's left edge.
+  let left = evt ? evt.clientX + cursorPad : r.left;
+  if (left + pw > vw - margin) left = evt ? evt.clientX - cursorPad - pw : vw - pw - margin;
+  left = Math.max(margin, Math.min(left, vw - pw - margin));
+
+  const top = below ? r.bottom + vGap : r.top - ph - vGap;
+  glossPopup.style.left = left + 'px';
+  glossPopup.style.top  = Math.max(margin, top) + 'px';
 }
 
-function showGlossPopup(anchor) {
+function showGlossPopup(anchor, evt) {
   const entry = GLOSSARY.get(anchor.dataset.key);
   if (!entry) return;
   glossPopup.innerHTML = sanitizeHtml(glossEntryHtml(entry, true));
   glossPopup.style.display = 'block';
   linkifyEntryBody(glossPopup, anchor.dataset.key);   // clickable mentions in the popup
-  positionGlossPopup(anchor);   // after linkify so height is measured correctly
+  positionGlossPopup(anchor, evt);   // after linkify so height is measured correctly
 }
 
 const glossModal = document.getElementById('gloss-modal');
@@ -4076,7 +4080,7 @@ function openGlossModal(key) {
     const a = e.target.closest('.gloss');
     if (!a) return;
     clearTimeout(glossHideTimer);
-    showGlossPopup(a);
+    showGlossPopup(a, e);
   });
   rendered.addEventListener('mouseout', e => {
     const a = e.target.closest('.gloss');
