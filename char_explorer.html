@@ -2482,25 +2482,36 @@ function checkSignatureSpells(char, spellsets) {
 // is easily left on the wrong attribute (often the main class's), yielding a DC
 // that's off by the difference between the two modifiers.
 //
-// Two rules let us verify without guessing the character's whole build:
+// What we check per spellcasting entry, without guessing the whole build:
 //  1. A PF2e spell DC ALWAYS keys off a mental attribute (Int/Wis/Cha); a physical
 //     one (Str/Dex/Con) is always wrong.
-//  2. Most classes and their multiclass dedications have a fixed key attribute
-//     (below). When we recognise the source we can name the right one and compute
-//     the corrected DC = total − storedMod + correctMod.
-// Ambiguous sources are deliberately NOT flagged: "Halcyon" spellcasting borrows
-// the attribute of a tradition you already cast (per Magaambyan Attendant: Int for
-// arcane / Wis for primal only "if you weren't already" a caster of it), and
-// generic "Focus Spells" / item ("Miscellaneous") entries have no fixed class — so
-// we only apply rule 1 (physical-attribute) to those.
+//  2. Recognised classes/dedications have a fixed key attribute (SPELL_KEY_ATTR).
+//     A focus pool ("castertype=points") carries no class label, so its attribute
+//     is taken from the character's class (CLASS_FOCUS_ATTR) — casters use their
+//     spell attribute; the martial focus classes are fixed (Monk/Ranger → Wis,
+//     Champion → Cha). When the source is known we name the right attribute and
+//     compute the corrected DC.
+//  3. A focus pool that actually holds spells must be at least Trained in its DC;
+//     Untrained means the proficiency was never set.
+// Deliberately NOT flagged: "Halcyon" spellcasting borrows the attribute of a
+// tradition you already cast (per Magaambyan Attendant: Int arcane / Wis primal,
+// only "if you weren't already" a caster of it), and item/innate "Miscellaneous"
+// buckets whose DCs come from the items, not an attribute.
 const SPELL_KEY_ATTR = [
   [/\b(wizard|witch|magus)\b/, 'intelligence'],
   [/\b(cleric|druid|animist)\b/, 'wisdom'],
   [/\b(bard|sorcerer|bloodline|oracle|summoner)\b/, 'charisma'],
 ];
+const CLASS_FOCUS_ATTR = [
+  [/wizard|witch|magus/, 'intelligence'],
+  [/cleric|druid|animist|monk|ranger/, 'wisdom'],
+  [/bard|sorcerer|oracle|summoner|champion/, 'charisma'],
+];
 const MENTAL_ATTRS = new Set(['intelligence', 'wisdom', 'charisma']);
 
 function checkSpellDcAttribute(char, abilities) {
+  const level      = num(char, 'level');
+  const classNames = children(char, 'classes').map(c => txt(c, 'name'));
   const issues = [];
   for (const ss of children(char, 'spellset')) {
     const dc = findPath(ss, 'dc');
@@ -2510,31 +2521,45 @@ function checkSpellDcAttribute(char, abilities) {
     const label     = txt(ss, 'label') || 'Spellcasting';
     const total     = num(dc, 'total');
     const storedMod = num(dc, 'abilitymod');
-    let expected = null;
-    for (const [re, ab] of SPELL_KEY_ATTR) if (re.test(label.toLowerCase())) { expected = ab; break; }
+    const isFocus   = txt(ss, 'castertype') === 'points';
+    const untrained = ['', 'untrained'].includes(txt(dc, 'proflevel').toLowerCase());
 
-    // Item / innate "Miscellaneous" catch-all sets (spells granted by gear) have
-    // no castertype and a placeholder attribute — their real DCs come from the
-    // items, so don't flag them. Real character spellcasting has a castertype
-    // (spontaneous / prepared / points) or is a recognised class/archetype.
-    const isRealCasting = !!txt(ss, 'castertype') || !!expected;
+    // Expected key attribute + a human description of where it comes from.
+    let expected = null, source = '';
+    for (const [re, ab] of SPELL_KEY_ATTR) if (re.test(label.toLowerCase())) { expected = ab; source = 'this class/archetype'; break; }
+    if (!expected && isFocus)
+      for (const cn of classNames) {
+        const hit = CLASS_FOCUS_ATTR.find(([re]) => re.test(cn.toLowerCase()));
+        if (hit) { expected = hit[1]; source = `a ${cn}'s focus spells`; break; }
+      }
 
-    if (!MENTAL_ATTRS.has(ability)) {
-      // Rule 1: physical attribute — always wrong for a real spell DC.
-      if (!isRealCasting) continue;
-      const fixed = (expected && abilities[expected])
-        ? ` — should use ${titleCase(expected)}, giving DC ${total - storedMod + abilities[expected].bonus}`
-        : ' — PF2e spell DCs always key off Intelligence, Wisdom, or Charisma';
-      issues.push(`  ⚠ **${label}**: spell DC keyed off ${ABILITY_ABBR[ability] ?? ability.toUpperCase()} (a physical attribute)${fixed}. Verify.`);
-    } else if (expected && ability !== expected && abilities[expected]) {
-      // Rule 2: recognised class/archetype set to the wrong mental attribute.
-      const corrected = total - storedMod + abilities[expected].bonus;
-      issues.push(
-        `  ⚠ **${label}**: spell DC uses ${titleCase(ability)} (DC ${total}), but this class/archetype keys off ` +
-        `${titleCase(expected)} → DC should be ${corrected}. FG has no per-class automation for this, so set the ` +
-        `spellcasting attribute on this entry.`
-      );
+    // Item / innate "Miscellaneous" buckets (no castertype, unrecognised) carry a
+    // placeholder attribute — their DCs come from the items — so skip them.
+    if (!txt(ss, 'castertype') && !expected) continue;
+
+    const spellCount  = children(ss, 'levels').reduce((n, lvl) => n + children(lvl, 'spells').length, 0);
+    const physical    = !MENTAL_ATTRS.has(ability);
+    const wrongMental = !physical && expected && ability !== expected;
+    const badProf     = isFocus && spellCount > 0 && untrained;
+
+    const problems = [];
+    if (physical)
+      problems.push(`keyed off ${ABILITY_ABBR[ability] ?? ability.toUpperCase()} (a physical attribute)` +
+                    (expected ? `; should use ${titleCase(expected)} (${source})` : ' — spell DCs key off Int, Wis, or Cha'));
+    else if (wrongMental)
+      problems.push(`uses ${titleCase(ability)}, but should use ${titleCase(expected)} (${source})`);
+    if (badProf)
+      problems.push('is set to Untrained (a focus caster is at least Trained)');
+    if (!problems.length) continue;
+
+    let fix = '';
+    if (expected && abilities[expected]) {
+      const expMod = abilities[expected].bonus;
+      fix = badProf
+        ? ` With ${titleCase(expected)} and at least Trained proficiency, the DC should be at least ${10 + level + 2 + expMod} (not ${total}).`
+        : ` DC should be ${total - storedMod + expMod} (not ${total}).`;
     }
+    issues.push(`  ⚠ **${label}**: spell DC ${problems.join('; ')}.${fix}`);
   }
   return issues;
 }
