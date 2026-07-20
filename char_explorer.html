@@ -1061,11 +1061,32 @@ function parseBasic(char) {
     if (first) className = txt(first, 'name');
   }
   const speedNode = findPath(char, 'speed');
+  // Heritage is stored in <traitlist> as an entry named "Heritage - <name>".
+  let heritage = '';
+  const traitList = findPath(char, 'traitlist');
+  if (traitList) {
+    for (const t of traitList.children) {
+      const m = txt(t, 'name').match(/^Heritage\s*[-–—]\s*(.+)$/i);
+      if (m) { heritage = m[1].trim(); break; }
+    }
+  }
+  // Class DC lives in proficiencies/spellclass as the entry named after the class
+  // (the spell-attack/spell-DC entries carry a spellclass_prof_type; this one doesn't).
+  let classDC = 0;
+  const profNode = findPath(char, 'proficiencies');
+  if (profNode) {
+    for (const sc of children(profNode, 'spellclass')) {
+      if (!txt(sc, 'spellclass_prof_type') && txt(sc, 'name') === className) { classDC = num(sc, 'total'); break; }
+    }
+  }
   return {
     name:      txt(char, 'name', 'Unknown'),
     level:     num(char, 'level'),
     race:      txt(char, 'race'),
     class:     className,
+    heritage,
+    keyAbility:txt(char, 'keyability'),
+    classDC,
     background:txt(char, 'background'),
     size:      txt(char, 'size'),
     speed:     speedNode ? num(speedNode, 'total') : 0,
@@ -2454,6 +2475,63 @@ function checkSignatureSpells(char, spellsets) {
   return issues;
 }
 
+// ── Spell DC key-attribute check ────────────────────────────────────────────
+// FG stores each spellcasting entry's spell DC as 10 + prof + ability mod (+item/
+// misc), but the KEY ATTRIBUTE is set by hand per entry — there's no automation
+// tying a spellcasting class/archetype to its correct attribute. So an archetype
+// is easily left on the wrong attribute (often the main class's), yielding a DC
+// that's off by the difference between the two modifiers.
+//
+// Two rules let us verify without guessing the character's whole build:
+//  1. A PF2e spell DC ALWAYS keys off a mental attribute (Int/Wis/Cha); a physical
+//     one (Str/Dex/Con) is always wrong.
+//  2. Most classes and their multiclass dedications have a fixed key attribute
+//     (below). When we recognise the source we can name the right one and compute
+//     the corrected DC = total − storedMod + correctMod.
+// Ambiguous sources are deliberately NOT flagged: "Halcyon" spellcasting borrows
+// the attribute of a tradition you already cast (per Magaambyan Attendant: Int for
+// arcane / Wis for primal only "if you weren't already" a caster of it), and
+// generic "Focus Spells" / item ("Miscellaneous") entries have no fixed class — so
+// we only apply rule 1 (physical-attribute) to those.
+const SPELL_KEY_ATTR = [
+  [/\b(wizard|witch|magus)\b/, 'intelligence'],
+  [/\b(cleric|druid|animist)\b/, 'wisdom'],
+  [/\b(bard|sorcerer|bloodline|oracle|summoner)\b/, 'charisma'],
+];
+const MENTAL_ATTRS = new Set(['intelligence', 'wisdom', 'charisma']);
+
+function checkSpellDcAttribute(char, abilities) {
+  const issues = [];
+  for (const ss of children(char, 'spellset')) {
+    const dc = findPath(ss, 'dc');
+    if (!dc) continue;
+    const ability = txt(dc, 'ability').toLowerCase();
+    if (!ability) continue;
+    const label     = txt(ss, 'label') || 'Spellcasting';
+    const total     = num(dc, 'total');
+    const storedMod = num(dc, 'abilitymod');
+    let expected = null;
+    for (const [re, ab] of SPELL_KEY_ATTR) if (re.test(label.toLowerCase())) { expected = ab; break; }
+
+    if (!MENTAL_ATTRS.has(ability)) {
+      // Rule 1: physical attribute — always wrong for a spell DC.
+      const fixed = (expected && abilities[expected])
+        ? ` — should use ${titleCase(expected)}, giving DC ${total - storedMod + abilities[expected].bonus}`
+        : ' — PF2e spell DCs always key off Intelligence, Wisdom, or Charisma';
+      issues.push(`  ⚠ **${label}**: spell DC keyed off ${ABILITY_ABBR[ability] ?? ability.toUpperCase()} (a physical attribute)${fixed}. Verify.`);
+    } else if (expected && ability !== expected && abilities[expected]) {
+      // Rule 2: recognised class/archetype set to the wrong mental attribute.
+      const corrected = total - storedMod + abilities[expected].bonus;
+      issues.push(
+        `  ⚠ **${label}**: spell DC uses ${titleCase(ability)} (DC ${total}), but this class/archetype keys off ` +
+        `${titleCase(expected)} → DC should be ${corrected}. FG has no per-class automation for this, so set the ` +
+        `spellcasting attribute on this entry.`
+      );
+    }
+  }
+  return issues;
+}
+
 function runConsistencyChecks(char, skills, effects, abilities, inventory, spellsets = []) {
   const encNode         = char.querySelector(':scope > encumbrance') ?? findPath(char, 'encumbrance');
   const armorPenalty    = encNode ? num(encNode, 'armorcheckpenalty') : 0;
@@ -2468,6 +2546,7 @@ function runConsistencyChecks(char, skills, effects, abilities, inventory, spell
     ['Armor check penalty',                                            checkArmorCheckPenalty(char, skills)],
     ['Missing FG automation (passive bonuses not tracked as effects)', checkMissingAutomation(inventory)],
     ['Signature spells (spontaneous casters)',                         checkSignatureSpells(char, spellsets)],
+    ['Spell DC key attribute (per class/archetype)',                   checkSpellDcAttribute(char, abilities)],
   ].filter(([, issues]) => issues.length);
 }
 
@@ -2547,10 +2626,11 @@ function render(char) {
 
   // ── header ─────────────────────────────────────────────────────────────────
   out.push(`# ${basic.name} — Character Sheet`);
-  out.push(`**Level ${basic.level} ${basic.race} ${basic.class}**`);
+  out.push(`**Level ${basic.level} ${basic.race}${basic.heritage ? ` (${basic.heritage})` : ''} ${basic.class}**`);
   if (basic.background) out.push(`**Background:** ${basic.background}`);
   if (basic.traits)     out.push(`**Traits:** ${basic.traits}`);
-  out.push(`**Size:** ${basic.size} | **Speed:** ${basic.speed} ft`);
+  out.push(`**Size:** ${basic.size} | **Speed:** ${basic.speed} ft` +
+           (basic.keyAbility ? ` | **Key Attribute:** ${titleCase(basic.keyAbility)}` : ''));
   if (basic.senses) out.push(`**Senses:** ${basic.senses}`);
   out.push(`**Hero Points:** ${'◆'.repeat(basic.heroPoints)}${'◇'.repeat(Math.max(0, 3 - basic.heroPoints))} (${basic.heroPoints})`);
   out.push('', '---', '');
@@ -2579,6 +2659,7 @@ function render(char) {
     statCard('Reflex',    sign(sv.reflex?.total    ?? 0), PROF_LABEL[sv.reflex?.proflevel]    ?? '', 'sc-save') +
     statCard('Will',      sign(sv.will?.total      ?? 0), PROF_LABEL[sv.will?.proflevel]      ?? '', 'sc-save') +
     statCard('Initiative', sign(defenses.init_perc), `Stealth ${sign(defenses.init_stealth)}`, '') +
+    (basic.classDC ? statCard('Class DC', basic.classDC, '', '') : '') +
     '</div>'
   );
   out.push('');
@@ -2855,6 +2936,22 @@ function render(char) {
     (investedTotal.length !== investedWorn.length ? ` · ${investedTotal.length} total owned` : ''),
     ''
   );
+
+  // ── Bulk / encumbrance ──────────────────────────────────────────────────────
+  // load = bulk currently carried, nopenalty = encumbered threshold, limit = max.
+  const bulkEnc = findPath(char, 'encumbrance');
+  if (bulkEnc && num(bulkEnc, 'limit')) {
+    const load  = parseFloat(txt(bulkEnc, 'load', '0')) || 0;
+    const encAt = num(bulkEnc, 'nopenalty');
+    const limit = num(bulkEnc, 'limit');
+    const loadStr = Number.isInteger(load) ? String(load) : load.toFixed(1);
+    const flag = load > limit ? ' ⚠ over limit' : load > encAt ? ' ⚠ encumbered' : '';
+    out.push(
+      `**Bulk:** ${loadStr} / ${limit}` +
+      (encAt ? ` *(encumbered over ${encAt})*` : '') + flag,
+      ''
+    );
+  }
   const inContainer = inventory.filter(i => i.location && i.carried_raw !== '2');
   const notCarried  = inventory.filter(i => (i.carried_raw === '0' || i.carried_raw === '3') && !i.location);
 
@@ -3022,6 +3119,7 @@ function populateCharHeader(char) {
     { label: 'Fort', val: sign(def.saves.fortitude?.total ?? 0), cls: 'save' },
     { label: 'Ref',  val: sign(def.saves.reflex?.total    ?? 0), cls: 'save' },
     { label: 'Will', val: sign(def.saves.will?.total      ?? 0), cls: 'save' },
+    ...(basic.classDC ? [{ label: 'Class DC', val: basic.classDC, cls: '' }] : []),
     { label: 'Per',  val: sign(def.init_perc || 0),              cls: '' },
     { label: 'Spd',  val: `${basic.speed} ft`,                   cls: '' },
     { label: 'Hero', val: `${'◆'.repeat(basic.heroPoints)}${'◇'.repeat(Math.max(0, 3 - basic.heroPoints))}`, cls: '' },

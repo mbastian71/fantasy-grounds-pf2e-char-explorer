@@ -2,3 +2,7 @@
 # Ignore everything in exports/ except Tevok, kept as a sample character.
 exports/*
 !exports/Tevok.xml
+
+# Fantasy Grounds ruleset sources — local reference material, not part of the app.
+CoreRPG/
+PFRPG2/
