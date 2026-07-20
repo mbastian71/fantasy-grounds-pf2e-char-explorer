@@ -736,17 +736,23 @@
     #rendered table.sp-tbl td { padding: 0.3rem 0.6rem; border-left: none; border-right: none; }
     #rendered table.sp-tbl th { border-left: none; border-right: none; }
     #rendered table.sp-tbl td, #rendered table.sp-tbl th { overflow-wrap: anywhere; }
-    #rendered table.sp-tbl col.spc-act  { width: 4.7rem; }
-    #rendered table.sp-tbl col.spc-name { width: 24%; }
+    #rendered table.sp-tbl col.spc-act  { width: 5.4rem; }
+    #rendered table.sp-tbl col.spc-name { width: 23%; }
     #rendered table.sp-tbl col.spc-trait{ width: 29%; }
     #rendered table.sp-tbl col.spc-range{ width: 16%; }
     #rendered table.sp-tbl col.spc-dur  { width: 15%; }
     #rendered table.sp-tbl col.spc-save { width: 9%; }
-    #rendered table.sp-tbl td.sp-act-cell { text-align: center; white-space: nowrap; overflow-wrap: normal; }
+    #rendered table.sp-tbl td.sp-act-cell {
+      text-align: center; white-space: nowrap; overflow-wrap: normal;
+      padding-left: 0.3rem; padding-right: 0.3rem;
+    }
+    #rendered table.sp-tbl td.sp-act-cell .act-i { letter-spacing: 0.02em; }
     #rendered tr.sp-unprep td { opacity: 0.42; }
-    #rendered tr.sp-unprep td:first-child::after {
-      content: ' not prepared'; font-size: 0.64rem; color: #b88;
-      font-style: italic; opacity: 1;
+    /* Marker rides on the name cell, not the narrow action cell, so it can't
+       spill across the column boundary. */
+    #rendered tr.sp-unprep td:nth-child(2)::after {
+      content: ' · not prepared'; font-size: 0.64rem; color: #b88;
+      font-style: italic; opacity: 1; white-space: nowrap;
     }
     .sp-badge.rank-range { border-color: #6a8a5a; color: #b0d8a0; }
     .trait-chip {
@@ -846,7 +852,7 @@
     <span class="filename" id="filename-label"></span>
     <select id="exports-switcher" aria-label="Switch character from exports folder" hidden></select>
     <div id="char-switcher"></div>
-    <span id="search-mode">searching all tabs <button onclick="clearGlobalSearch()">✕ clear</button></span>
+    <span id="search-mode"><span id="search-mode-label">searching all tabs</span> <button onclick="clearGlobalSearch()">✕ clear</button></span>
     <button class="btn btn-secondary" id="btn-collapse" onclick="toggleAllSections()">Collapse all</button>
     <details id="export-menu">
       <summary>Export ▾</summary>
@@ -1328,17 +1334,20 @@ function parseCastCost(casting) {
   if (!s) return { key:'', icons:'', title:'', sort:99, html:'—' };
   const glyphs = [...s].map(c => CAST_GLYPHS[c]).filter(Boolean);
   if (glyphs.length) {
-    const isRange = /\bto\b/.test(s) && glyphs.length >= 2;
-    const key   = isRange ? glyphs.join('-') : glyphs[0];
-    const icons = isRange
-      ? `${CAST_ICON[glyphs[0]]}–${CAST_ICON[glyphs.at(-1)]}`
-      : glyphs.map(g => CAST_ICON[g]).join('/');
-    const title = isRange
-      ? `${glyphs[0]} to ${glyphs.at(-1)} actions`
-      : glyphs.map(g => CAST_TITLE[g]).join(' or ');
-    const cls = glyphs[0] === 'R' ? ' act-r' : glyphs[0] === 'F' ? ' act-f' : '';
+    // Dedupe so a doubly-encoded single cost (e.g. 2 == /) stays single,
+    // and render any variable cost as a compact min–max range (◆–◆◆◆) rather than a
+    // slash list, which overflows the narrow action column.
+    const uniq  = [...new Set(glyphs)];
+    const multi = uniq.length >= 2;
+    const first = uniq[0], last = uniq[uniq.length - 1];
+    // key stays split('-')-parseable (endpoints only) so the action filter, which
+    // expands a 2-part numeric range, still matches every cost in between.
+    const key   = multi ? `${first}-${last}` : first;
+    const icons = multi ? `${CAST_ICON[first]}–${CAST_ICON[last]}` : CAST_ICON[first];
+    const title = multi ? `${first} to ${last} actions` : CAST_TITLE[first];
+    const cls = first === 'R' ? ' act-r' : first === 'F' ? ' act-f' : '';
     return {
-      key, icons, title, sort: CAST_SORT[glyphs[0]] ?? 9,
+      key, icons, title, sort: CAST_SORT[first] ?? 9,
       html: `<span class="act-i${cls}" title="${escHtml(title)}">${escHtml(icons)}</span>`,
     };
   }
@@ -3276,7 +3285,7 @@ function makeSpellSubTabs() {
 // ══ Search ══════════════════════════════════════════════════════════════════════
 
 let searchGlobal = '';
-const tabFilters = {};  // panelIdx → { text?, trait?, save?, rank?, duration?, gearType?, proficiency? }
+const tabFilters = {};  // panelIdx → { text?, trait?, save?, rank?, act?, gearType?, proficiency? }
 
 function makeSearchBars() {
   // ── Global search bar in toolbar ──────────────────────────────────────────
@@ -3372,12 +3381,9 @@ function makeSearchBars() {
       if (tabFilters[idx].rank) rankSel.value = tabFilters[idx].rank;
       rankSel.addEventListener('change', e => { tabFilters[idx].rank = e.target.value; applyFilters(); });
 
-      const durIn = mkInput('Duration…');
-      durIn.style.width = '8rem';
-      if (tabFilters[idx].duration) durIn.value = tabFilters[idx].duration;
-      durIn.addEventListener('input', e => { tabFilters[idx].duration = e.target.value.trim().toLowerCase(); applyFilters(); });
-
-      bar.append(chipWrap, traitSel, saveSel, rankSel, durIn);
+      // No dedicated duration filter: the main text box already matches the
+      // Duration cell (it searches the whole row via tr.textContent).
+      bar.append(chipWrap, traitSel, saveSel, rankSel);
     }
 
     if (isFeats) {
@@ -3463,18 +3469,33 @@ function applyFilters() {
   if (sm) sm.style.display = gq ? 'inline-flex' : 'none';
 
   // ── 1. Tab-panel visibility ───────────────────────────────────────────────
-  // When global search is active, expose ALL panels so results across every
-  // tab are visible.  When cleared, only the active tab's panel is shown.
+  // Non-search: show only the active tab's panel; keep every tab listed.
+  // Global search: a panel is shown — and its tab listed — only if it actually
+  // has a match. That decision needs per-panel match counts, so it's deferred
+  // to the per-panel pass below; here we just restore the non-search baseline.
   const allPanels   = [...root.querySelectorAll('.tab-panel')];
+  const tabBar      = root.querySelector('.tab-bar');
   const activePanelIdx = root.querySelector('.tab-btn.active')?.dataset.tab ?? '0';
-  allPanels.forEach(p => {
-    p.style.display = (gq || p.dataset.tab === activePanelIdx) ? '' : 'none';
-  });
+  if (!gq) {
+    allPanels.forEach(p => { p.style.display = p.dataset.tab === activePanelIdx ? '' : 'none'; });
+    tabBar?.querySelectorAll('.tab-btn').forEach(b => { b.style.display = ''; });
+  }
+  let grandTotal = 0;   // matches across every panel (global search only)
 
   // Open every <details> chain above an element so filter matches are never
   // silently hidden inside a collapsed section.
   const openAncestors = el => {
     for (let d = el.closest('details'); d; d = d.parentElement?.closest('details')) d.open = true;
+  };
+
+  // Show/hide a table's wrapper together with its immediately-preceding heading
+  // (a spell rank header, a caster-class name, an "Active Effects" caption, …),
+  // so an emptied table never leaves an orphaned label floating over blank space.
+  const toggleTable = (tbl, show) => {
+    const wrapEl = tbl.closest('.tbl-wrap') || tbl;
+    wrapEl.style.display = show ? '' : 'none';
+    const prev = wrapEl.previousElementSibling;
+    if (prev && /^(P|H3|H4|H5|H6)$/.test(prev.tagName)) prev.style.display = show ? '' : 'none';
   };
 
   // ── 2. Per-panel filtering ────────────────────────────────────────────────
@@ -3484,23 +3505,19 @@ function applyFilters() {
     let totalVisible = 0;
 
     // ── Spell class sub-tabs (sec-h3 elements) ──────────────────────────────
-    // When any filter is active, show ALL spell-class sections so results
-    // from every caster class (bard, wizard, …) are visible simultaneously.
-    // When search is cleared, restore the single active spell sub-tab.
-    const spellSubDets = [...panel.querySelectorAll('details.sec-h3')];
-    if (spellSubDets.length > 1) {
-      if (anyFilter) {
-        spellSubDets.forEach(d => { d.style.display = ''; });
-      } else {
-        const activeSub = panel.querySelector('.spell-sub-btn.active');
-        const ssIdx = activeSub?.dataset.ssIdx ?? '0';
-        if (ssIdx === 'all') {
-          spellSubDets.forEach(d => { d.style.display = ''; });
-        } else {
-          const activeSubIdx = parseInt(ssIdx, 10);
-          spellSubDets.forEach((d, i) => { d.style.display = i === activeSubIdx ? '' : 'none'; });
-        }
-      }
+    // These pills live ONLY in the Spells panel. Gear (equipment categories)
+    // and Skills (activities) ALSO use sec-h3, so this logic must be scoped to
+    // the Spells panel — otherwise filtering elsewhere collapses those to just
+    // the first sub-section. With no filter, restore the single active sub-tab
+    // (or all). When a filter IS active, the unified collapse pass further down
+    // shows exactly the sub-sections that still have matches (for every panel).
+    const isSpellsPanel = !!panel.querySelector('.spell-sub-btn');
+    const spellSubDets  = isSpellsPanel ? [...panel.querySelectorAll('details.sec-h3')] : [];
+    if (isSpellsPanel && spellSubDets.length > 1 && !anyFilter) {
+      const ssIdx = panel.querySelector('.spell-sub-btn.active')?.dataset.ssIdx ?? '0';
+      spellSubDets.forEach((d, i) => {
+        d.style.display = (ssIdx === 'all' || i === parseInt(ssIdx, 10)) ? '' : 'none';
+      });
     }
 
     // ── Spell tables ────────────────────────────────────────────────────────
@@ -3535,28 +3552,15 @@ function applyFilters() {
             : rowActs;
           if (!wanted.some(w => expanded.includes(w))) ok = false;
         }
-        if (ok && tf.duration && !(tr.dataset.duration || '').includes(tf.duration)) ok = false;
         tr.style.display = ok ? '' : 'none';
         if (ok) { anyInTable = true; totalVisible++; }
       });
-      // wrapTables() nests each <table> in a .tbl-wrap div, so the rank header
-      // ("Rank N · X slots") is the previous sibling of the WRAPPER, not the table.
-      const wrapEl = tbl.closest('.tbl-wrap') || tbl;
-      const prev = wrapEl.previousElementSibling;
-      if (prev?.classList.contains('sp-rank-hdr')) prev.style.display = anyInTable ? '' : 'none';
-      wrapEl.style.display = anyInTable ? '' : 'none';
+      // Hide the wrapper AND its preceding rank header ("Rank N · X slots") when
+      // the table empties; toggleTable pairs them (wrapTables() nests each table
+      // in a .tbl-wrap, so the header is the previous sibling of the WRAPPER).
+      toggleTable(tbl, !anyFilter || anyInTable);
       if (anyFilter && anyInTable) openAncestors(tbl);
     });
-
-    // When a filter is active, collapse spell class sections that became
-    // entirely empty (all their spells filtered out).
-    if (anyFilter && spellSubDets.length > 1) {
-      spellSubDets.forEach(det => {
-        const hasVisible = [...det.querySelectorAll('table.sp-tbl')]
-          .some(t => (t.closest('.tbl-wrap') || t).style.display !== 'none');
-        det.style.display = hasVisible ? '' : 'none';
-      });
-    }
 
     // ── Regular tables (feats, gear, skills, etc.) ─────────────────────────
     panel.querySelectorAll('table:not(.sp-tbl)').forEach(tbl => {
@@ -3580,13 +3584,46 @@ function applyFilters() {
         tr.style.display = ok ? '' : 'none';
         if (ok) { anyInTable = true; totalVisible++; }
       });
+      // Hide the whole wrapper (incl. its column-header row) and any per-table
+      // caption when a filter empties it, so a section never shows a bare header
+      // (or an orphaned caster-class heading) over no rows.
+      toggleTable(tbl, !anyFilter || anyInTable);
       if (anyFilter && anyInTable) openAncestors(tbl);
     });
 
-    // No-results notice
+    // ── Collapse empty section chrome under an active filter ────────────────
+    // Roll table visibility up to the section level: a sub-section (sec-h3) or
+    // section (sec-h2) with no surviving rows is hidden outright — heading and
+    // all — instead of leaving an orphaned "Defenses"/"Weapons" header. With no
+    // filter everything is restored (the Spells panel's active sub-tab, set
+    // above, keeps ownership of its own sec-h3).
+    const hasVisibleRow = el => [...el.querySelectorAll('table tbody tr')].some(r => r.style.display !== 'none');
+    panel.querySelectorAll('details.sec-h3').forEach(det => {
+      if (spellSubDets.includes(det) && !anyFilter) return;
+      det.style.display = (!anyFilter || hasVisibleRow(det)) ? '' : 'none';
+    });
+    panel.querySelectorAll('details.sec-h2').forEach(det => {
+      det.style.display = (!anyFilter || hasVisibleRow(det)) ? '' : 'none';
+    });
+
+    // No-results notice (per-tab filtering only — in global search an empty
+    // panel is hidden outright, so its notice would never be seen anyway).
     const noRes = document.getElementById(`search-no-res-${idx}`);
     if (noRes) noRes.style.display = (anyFilter && totalVisible === 0) ? 'block' : 'none';
+
+    // Global search: reveal a panel and list its tab only when it has ≥1 match.
+    if (gq) {
+      const hit = totalVisible > 0;
+      panel.style.display = hit ? '' : 'none';
+      const btn = tabBar?.querySelector(`.tab-btn[data-tab="${panel.dataset.tab}"]`);
+      if (btn) btn.style.display = hit ? '' : 'none';
+      grandTotal += totalVisible;
+    }
   });
+
+  // Global search with nothing anywhere: tell the user instead of a blank page.
+  const smLabel = document.getElementById('search-mode-label');
+  if (smLabel) smLabel.textContent = (gq && grandTotal === 0) ? 'no matches in any tab' : 'searching all tabs';
 }
 
 // ══ Glossary (hover descriptions + pop-out windows) ═════════════════════════════
