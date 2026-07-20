@@ -2513,8 +2513,15 @@ function checkSpellDcAttribute(char, abilities) {
     let expected = null;
     for (const [re, ab] of SPELL_KEY_ATTR) if (re.test(label.toLowerCase())) { expected = ab; break; }
 
+    // Item / innate "Miscellaneous" catch-all sets (spells granted by gear) have
+    // no castertype and a placeholder attribute — their real DCs come from the
+    // items, so don't flag them. Real character spellcasting has a castertype
+    // (spontaneous / prepared / points) or is a recognised class/archetype.
+    const isRealCasting = !!txt(ss, 'castertype') || !!expected;
+
     if (!MENTAL_ATTRS.has(ability)) {
-      // Rule 1: physical attribute — always wrong for a spell DC.
+      // Rule 1: physical attribute — always wrong for a real spell DC.
+      if (!isRealCasting) continue;
       const fixed = (expected && abilities[expected])
         ? ` — should use ${titleCase(expected)}, giving DC ${total - storedMod + abilities[expected].bonus}`
         : ' — PF2e spell DCs always key off Intelligence, Wisdom, or Charisma';
