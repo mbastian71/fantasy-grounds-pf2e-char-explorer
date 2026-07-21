@@ -6,3 +6,6 @@ exports/*
 # Fantasy Grounds ruleset sources — local reference material, not part of the app.
 CoreRPG/
 PFRPG2/
+
+# Local dev/test dependencies (playwright-core installed with --no-save).
+node_modules/
