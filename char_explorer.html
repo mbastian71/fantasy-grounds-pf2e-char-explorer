@@ -3927,7 +3927,10 @@ function buildGlossary(char, skills = []) {
         if (heightened) body += '<h4>Heightened</h4>' + heightened;
         const spellAuto    = txt(sp, 'automation').trim();
         const spellActions = parseSpellActions(sp, name);
-        add(name, { name, kind: `Spell · rank ${lvl}`, meta, body, spellActions, automation: spellAuto, editable: !!spellAuto });
+        // editable: true even with no existing automation, so one can be ADDED
+        // (FG has no per-class spell-DC automation to inherit) — the Edit dialog
+        // creates the <automation> node on save. Matches feats/features/items.
+        add(name, { name, kind: `Spell · rank ${lvl}`, meta, body, spellActions, automation: spellAuto, editable: true });
       }
     }
   }
