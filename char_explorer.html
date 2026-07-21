@@ -2493,6 +2493,12 @@ function checkSignatureSpells(char, spellsets) {
 //     compute the corrected DC.
 //  3. A focus pool that actually holds spells must be at least Trained in its DC;
 //     Untrained means the proficiency was never set.
+//  4. AMBIGUITY: a focus pool is ONE DC, but its spells can come from several
+//     sources (main class + archetype dedications). When those sources key off
+//     DIFFERENT attributes (e.g. Sorcerer/Cha + Druid Dedication/Wis), no single
+//     DC is right for every focus spell. There we don't assert one "correct"
+//     attribute or a corrected DC — we flag it as something to verify by hand,
+//     naming each source and its attribute.
 // Deliberately NOT flagged: "Halcyon" spellcasting borrows the attribute of a
 // tradition you already cast (per Magaambyan Attendant: Int arcane / Wis primal,
 // only "if you weren't already" a caster of it), and item/innate "Miscellaneous"
@@ -2512,6 +2518,26 @@ const MENTAL_ATTRS = new Set(['intelligence', 'wisdom', 'charisma']);
 function checkSpellDcAttribute(char, abilities) {
   const level      = num(char, 'level');
   const classNames = children(char, 'classes').map(c => txt(c, 'name'));
+
+  // Every source that can grant focus spells, and its key attribute: the main
+  // class(es) plus each archetype dedication (feat named "<Class> Dedication").
+  // If these disagree, a single focus-pool DC can't be right for all of them.
+  const focusSources = {};                          // attr -> Set of source labels
+  const addFocusSource = (name, label) => {
+    const hit = CLASS_FOCUS_ATTR.find(([re]) => re.test(name.toLowerCase()));
+    if (hit) (focusSources[hit[1]] ??= new Set()).add(label);
+  };
+  for (const cn of classNames) addFocusSource(cn, cn);
+  for (const f of children(char, 'featlist')) {
+    const m = /([A-Za-z]+)\s+Dedication\b/.exec(txt(f, 'name') || '');
+    if (m) addFocusSource(m[1], `${titleCase(m[1].toLowerCase())} archetype`);
+  }
+  const focusAmbiguous  = Object.keys(focusSources).length > 1;
+  const focusSourceDesc = () =>
+    Object.entries(focusSources)
+      .map(([ab, srcs]) => `${titleCase(ab)} (${[...srcs].join(', ')})`)
+      .join(', ');
+
   const issues = [];
   for (const ss of children(char, 'spellset')) {
     const dc = findPath(ss, 'dc');
@@ -2541,19 +2567,26 @@ function checkSpellDcAttribute(char, abilities) {
     const physical    = !MENTAL_ATTRS.has(ability);
     const wrongMental = !physical && expected && ability !== expected;
     const badProf     = isFocus && spellCount > 0 && untrained;
+    // A focus pool fed by sources with different key attributes: we can't name a
+    // single right attribute, so soften the wording and skip the corrected DC.
+    const ambiguous   = isFocus && focusAmbiguous && spellCount > 0;
 
     const problems = [];
     if (physical)
       problems.push(`keyed off ${ABILITY_ABBR[ability] ?? ability.toUpperCase()} (a physical attribute)` +
-                    (expected ? `; should use ${titleCase(expected)} (${source})` : ' — spell DCs key off Int, Wis, or Cha'));
-    else if (wrongMental)
+                    (ambiguous ? ' — spell DCs key off a mental attribute (Int, Wis, or Cha)'
+                     : expected ? `; should use ${titleCase(expected)} (${source})`
+                     : ' — spell DCs key off Int, Wis, or Cha'));
+    else if (wrongMental && !ambiguous)
       problems.push(`uses ${titleCase(ability)}, but should use ${titleCase(expected)} (${source})`);
+    if (ambiguous)
+      problems.push(`is a single shared value, but this character's focus spells can come from sources with different key attributes (${focusSourceDesc()}) — one DC can't be right for all of them, so verify it matches the focus spells you actually use`);
     if (badProf)
       problems.push('is set to Untrained (a focus caster is at least Trained)');
     if (!problems.length) continue;
 
     let fix = '';
-    if (expected && abilities[expected]) {
+    if (!ambiguous && expected && abilities[expected]) {
       const expMod = abilities[expected].bonus;
       fix = badProf
         ? ` With ${titleCase(expected)} and at least Trained proficiency, the DC should be at least ${10 + level + 2 + expMod} (not ${total}).`
