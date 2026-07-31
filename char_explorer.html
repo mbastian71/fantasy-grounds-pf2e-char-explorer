@@ -1598,14 +1598,75 @@ function checkMiscVsEffects(skills, effects) {
   });
 }
 
-function checkItemBonusStacking(effects) {
-  const skillEffs = parseSkillEffects(effects);
-  return Object.entries(skillEffs).flatMap(([skill, sources]) => {
-    const itemSources = sources.filter(([, btype]) => btype === 'item');
-    if (itemSources.length <= 1) return [];
-    const details = itemSources.map(([b, , name]) => `'${name}' (+${b})`).join(', ');
-    return [`  ⚠ **${skill}**: multiple item bonuses tracked as active (only the highest applies in PF2e): ${details}`];
-  });
+// ── Overlapping bonuses that don't stack ─────────────────────────────────────
+// PF2e: bonuses of the SAME type don't stack — only the highest applies. The
+// typed categories that follow this rule are ITEM, CIRCUMSTANCE and STATUS
+// (spell bonuses are almost always "status"); untyped bonuses DO stack, so they
+// are ignored here. This unifies what used to be two narrower checks so it can
+// see across their blind spots:
+//   • a tracked-effect item and a description-only item hitting the same skill
+//     with the same type — neither old check saw both sources at once (e.g.
+//     Tevok's Choker of Elocution + Bloodline Robe, both +2 item to Society);
+//   • an item you only CARRY (not worn/invested) grants nothing, but is worth a
+//     heads-up when it duplicates a same-type bonus you already have.
+// So gather every skill bonus from BOTH tracked active effects (type read from
+// the FG label) and item descriptions (always an item bonus), key on
+// target+type, and report groups with more than one source.
+const STACKING_TYPES = new Set(['item', 'circumstance', 'status']);
+
+function checkBonusStacking(effects, inventory) {
+  const groups = {};   // "target|type" -> [{ name, val, active }]
+  // Only canonical skills (incl. Perception) are compared. Description scraping
+  // yields plenty of prose/consumable targets ("poisons for 10 minutes", "land
+  // speed", "checks to pick locks", "attack rolls", "saving throws") that aren't
+  // clean skill bonuses — restricting to the known list drops that noise and
+  // also unifies variants like "Athletics Skill" → "athletics" so a real overlap
+  // isn't split across two spellings.
+  const SKILL_TARGETS = new Set(AB_SKILLS.map(([k]) => k));
+  const normTarget = t => t.toLowerCase().trim()
+    .replace(/^ft\s+/, '')
+    .replace(/\s+(?:skill|skills|checks?|saves?|rolls?)$/, '')
+    .trim();
+  const add = (rawTarget, type, val, name, active) => {
+    if (!STACKING_TYPES.has(type) || val <= 0) return;
+    const target = normTarget(rawTarget);
+    if (!SKILL_TARGETS.has(target)) return;
+    (groups[`${target}|${type}`] ??= []).push({ name, val, active });
+  };
+
+  // Tracked active effects carry an explicit bonus type in their label.
+  for (const [target, sources] of Object.entries(parseSkillEffects(effects)))
+    for (const [val, type, name] of sources) add(target, type, val, name, true);
+
+  // Item descriptions ("+N Skill") are item bonuses; worn = active, only-carried
+  // = inactive. Items with tracked effects carry "SKILL: …"-form labels instead,
+  // which don't match this regex, so they're covered by the effects pass above
+  // (no double counting).
+  for (const item of inventory)
+    for (const b of item.bonuses) {
+      const m = b.match(/^\+(\d+)\s+(.+)$/);
+      if (!m) continue;
+      const target = m[2].replace(/^ft\s+/i, '').trim().toLowerCase();
+      add(target, 'item', parseInt(m[1], 10), item.name, item.carried_raw === '2');
+    }
+
+  const issues = [];
+  for (const [key, srcs] of Object.entries(groups)) {
+    if (srcs.length < 2) continue;
+    const [target, type] = key.split('|');
+    const active = srcs.filter(s => s.active);
+    if (!active.length) continue;                       // nothing actually applies
+    const label = titleCase(target);
+    const art   = type === 'item' ? 'an' : 'a';         // "an item" / "a status" / "a circumstance"
+    const list  = ss => ss.map(s => `'${s.name}' (+${s.val})`).join(', ');
+    if (active.length >= 2) {
+      issues.push(`  ⚠ **${label}**: ${active.length} ${type} bonuses are active but ${type} bonuses don't stack — only the highest applies: ${list(active)}`);
+    } else {
+      const carried = srcs.filter(s => !s.active);
+      issues.push(`  ⚠ **${label}**: has ${art} ${type} bonus from ${list(active)}; ${list(carried)} would grant ${art} ${type} bonus too, but ${carried.length > 1 ? 'are' : 'is'} only carried (not worn/invested) — ${carried.length > 1 ? 'they' : 'it'} wouldn't stack.`);
+    }
+  }
+  return issues;
 }
 
 function checkStowedEffects(char) {
@@ -2364,27 +2425,6 @@ function checkEffectSourceNames(char, effects) {
   return issues;
 }
 
-// Catch worn items whose *description-scraped* bonuses target the same stat
-// (e.g. Armbands of Athleticism + Lifting Belt both boosting Athletics) —
-// checkItemBonusStacking only sees tracked <effects>, which such items lack.
-function checkPassiveBonusStacking(inventory) {
-  const byTarget = {};   // target -> [{item, val}]
-  for (const item of inventory) {
-    if (item.carried_raw !== '2') continue;
-    for (const b of item.bonuses) {
-      const m = b.match(/^\+(\d+)\s+(.+)$/);
-      if (!m) continue;
-      const target = m[2].replace(/^ft\s+/i, '').trim().toLowerCase();
-      (byTarget[target] ??= []).push({ name: item.name, val: parseInt(m[1], 10) });
-    }
-  }
-  return Object.entries(byTarget).flatMap(([target, sources]) => {
-    if (sources.length <= 1 || target === 'speed') return [];
-    const details = sources.map(s => `'${s.name}' (+${s.val})`).join(', ');
-    return [`  ⚠ **${titleCase(target)}**: multiple worn items grant an item bonus (only the highest applies in PF2e): ${details}`];
-  });
-}
-
 // Signature-spell bookkeeping check for spontaneous casters.
 // PF2e Remastered: the spontaneous full casters — Sorcerer, Bard, Oracle,
 // Psychic and Summoner — choose ONE signature spell per spell rank of their
@@ -2603,8 +2643,7 @@ function runConsistencyChecks(char, skills, effects, abilities, inventory, spell
   return [
     ['Skill total mismatches',                                        checkSkillTotals(skills, armorPenalty)],
     ['Hardcoded misc bonuses (not effect-linked)',                     checkMiscVsEffects(skills, effects)],
-    ['Non-stacking item bonuses on the same skill',                    checkItemBonusStacking(effects)],
-    ['Non-stacking item bonuses among worn items (from descriptions)', checkPassiveBonusStacking(inventory)],
+    ['Overlapping bonuses (same type — only the highest applies)',      checkBonusStacking(effects, inventory)],
     ['Active effects from stowed items',                               checkStowedEffects(char)],
     ['Effect name mismatches (possible typos)',                        checkEffectSourceNames(char, effects)],
     ['HP total',                                                       checkHp(char, abilities)],
