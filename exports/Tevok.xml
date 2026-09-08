@@ -30,12 +30,12 @@
 				<tempmod type="number">0</tempmod>
 			</dexterity>
 			<intelligence>
-				<bonus type="number">4</bonus>
+				<bonus type="number">5</bonus>
 				<bonusmodifier type="number">0</bonusmodifier>
 				<chargen type="number">19</chargen>
 				<damage type="number">0</damage>
-				<miscmod type="number">0</miscmod>
-				<score type="number">19</score>
+				<miscmod type="number">1</miscmod>
+				<score type="number">20</score>
 				<tempmod type="number">0</tempmod>
 			</intelligence>
 			<strength>
@@ -64,7 +64,7 @@
 				<acmisc type="number">0</acmisc>
 				<acshieldactive type="number">0</acshieldactive>
 				<armor type="number">0</armor>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<shield type="number">0</shield>
 				<shieldraised type="number">0</shieldraised>
@@ -74,7 +74,7 @@
 			<totals>
 				<cmd type="number">0</cmd>
 				<flatfooted type="number">0</flatfooted>
-				<general type="number">35</general>
+				<general type="number">36</general>
 				<touch type="number">0</touch>
 			</totals>
 		</ac>
@@ -7539,6 +7539,63 @@
 					</id-00001>
 				</sections>
 			</id-00006>
+			<id-00007>
+				<activitiesicon type="string">item</activitiesicon>
+				<label type="string">Item Activities</label>
+				<order type="string">01</order>
+				<sections>
+					<id-00001>
+						<activities />
+						<label type="string">Apex Items</label>
+					</id-00001>
+					<id-00002>
+						<activities>
+							<id-00001>
+								<actions />
+								<activation type="string"> (concentrate)</activation>
+								<activity type="string">action</activity>
+								<autocreate type="number">0</autocreate>
+								<category type="string">Item Activities</category>
+								<category_section type="string">Item Activities</category_section>
+								<count type="number">0</count>
+								<createactivity type="number">0</createactivity>
+								<dataversion type="number">0</dataversion>
+								<effectsbenefits type="formattedtext">
+									<p>You gain the effects of hypercognition.</p>
+									<linklist>
+										<link class="spelldesc" recordname="reference.spells.hypercognition@Pathfinder 2 - Player Core">Spell: Hypercognition</link>
+									</linklist>
+								</effectsbenefits>
+								<favorite type="number">0</favorite>
+								<footnote type="formattedtext">
+									<p />
+								</footnote>
+								<frequency type="string">once per hour</frequency>
+								<guirefresh type="number">1</guirefresh>
+								<howtouse type="formattedtext">
+									<p />
+								</howtouse>
+								<locked type="number">1</locked>
+								<name type="string">Crown of Intellect - Search Your Mind</name>
+								<shortcut type="windowreference">
+									<class>reference_activity</class>
+									<recordname />
+								</shortcut>
+								<shortcut_base type="windowreference">
+									<class>item</class>
+									<recordname>........inventorylist.id-00028</recordname>
+								</shortcut_base>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<special type="formattedtext">
+									<p />
+								</special>
+								<traits type="string">concentrate</traits>
+							</id-00001>
+						</activities>
+						<label type="string">Item Activities</label>
+					</id-00002>
+				</sections>
+			</id-00007>
 		</activityset>
 		<attackbonus>
 			<base type="number">0</base>
@@ -7608,6 +7665,54 @@
 				<level_5_four_boosts_choices type="string">strength|dexterity|constitution|intelligence|wisdom|charisma</level_5_four_boosts_choices>
 			</choices>
 			<log type="formattedtext">
+				<p>+ Feat 'Loremaster's Etude' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
+				<linklist>
+					<link class="referencefeat" recordname="reference.feats.loremastersetudebardfortune@Pathfinder 2 - Player Core">Loremaster's Etude</link>
+				</linklist>
+				<p>___________________________________________________________</p>
+				<p>+ Feat 'Basic Muse's Whispers' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
+				<linklist>
+					<link class="referencefeat" recordname="reference.feats.basicmuseswhispersarchetype@Pathfinder 2 - Player Core">Basic Muse's Whispers</link>
+				</linklist>
+				<p>___________________________________________________________</p>
+				<p>+ Feat 'Specialty Crafting' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
+				<linklist>
+					<link class="referencefeat" recordname="reference.feats.specialtycraftinggeneralskill@Pathfinder 2 - Player Core">Specialty Crafting</link>
+				</linklist>
+				<p>___________________________________________________________</p>
+				<p>+ Feat 'Knowledge is Power' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
+				<linklist>
+					<link class="referencefeat" recordname="reference.feats.knowledgeispowerwizard@Pathfinder 2 - Player Core">Knowledge is Power</link>
+				</linklist>
+				<p>___________________________________________________________</p>
+				<p>+ Feat 'Advanced Arcana' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
+				<linklist>
+					<link class="referencefeat" recordname="reference.feats.advancedarcanaarchetype@Pathfinder 2 - Player Core">Advanced Arcana</link>
+				</linklist>
+				<p>___________________________________________________________</p>
+				<p>+ Feat 'Greater Mental Evolution' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
+				<linklist>
+					<link class="referencefeat" recordname="reference.feats.id-00470@PZOSMWPZO12004FG">Greater Mental Evolution</link>
+				</linklist>
+				<p>___________________________________________________________</p>
+				<h>+++ Free Archetype Variant Rule - Add a valid archetype feat.</h>
+				<h>+++ Add 'sorcerer feat 8'</h>
+				<h>+++ Add 'skill feat 8'</h>
+				<p>+ Class hit points ((Class + CON bonus) x level) for 'Tevok' = '160'.</p>
+				<p>
+					<b>+ One level of class 'Sorcerer' added to 'Tevok'.</b>
+				</p>
+				<p>___________________________________________________________</p>
+				<p>+ Feat 'Split Slot' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
+				<linklist>
+					<link class="referencefeat" recordname="reference.feats.splitslotwizard@Pathfinder 2 - Player Core">Split Slot</link>
+				</linklist>
+				<p>___________________________________________________________</p>
+				<p>+ Feat 'Quick Recognition' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
+				<linklist>
+					<link class="referencefeat" recordname="reference.feats.quickrecognitiongeneralskill@Pathfinder 2 - Player Core">Quick Recognition</link>
+				</linklist>
+				<p>___________________________________________________________</p>
 				<p>+ Feat 'Craft Anything' added to 'Tevok'. No automation applied. <b>+++ Check entry and manually apply if needed.</b></p>
 				<linklist>
 					<link class="referencefeat" recordname="reference.feats.craftanythinggeneralskill@Pathfinder 2 - Player Core">Craft Anything</link>
@@ -8126,7 +8231,7 @@
 		<charismahpartial type="number">1</charismahpartial>
 		<classes>
 			<id-00001>
-				<level type="number">15</level>
+				<level type="number">16</level>
 				<name type="string">Sorcerer</name>
 				<shortcut type="windowreference">
 					<class>referenceclass</class>
@@ -8158,6 +8263,9 @@
 				<total type="number">0</total>
 			</sr>
 		</defenses>
+		<deities_notes type="formattedtext">
+			<p />
+		</deities_notes>
 		<deitylink type="windowreference">
 			<class />
 			<recordname />
@@ -8211,6 +8319,18 @@
 				<label type="string">SKILL: +2 item, society</label>
 				<name type="string">Choker of Elocution - Greater (Xanmba, Akklo, Azlanti)</name>
 			</id-00004>
+			<id-00005>
+				<calculated_effect type="string">SKILL: +3 item, recall knowledge</calculated_effect>
+				<cteffectlinknode type="string">combattracker.list.id-00001.effects.id-00004</cteffectlinknode>
+				<effect_type type="string">char</effect_type>
+				<effectsourcelink type="windowreference">
+					<class>item</class>
+					<recordname>....inventorylist.id-00028</recordname>
+				</effectsourcelink>
+				<isactive type="number">1</isactive>
+				<label type="string">SKILL: +3 item, recall knowledge</label>
+				<name type="string">Crown of Intellect</name>
+			</id-00005>
 		</effects>
 		<encumbrance>
 			<armorcheckpenalty type="number">0</armorcheckpenalty>
@@ -8364,16 +8484,29 @@
 				<traits type="string">FORTUNE, GENERAL, SKILL</traits>
 			</id-00007>
 			<id-00008>
+				<actions />
+				<activities />
 				<autocreate type="number">0</autocreate>
 				<createactivity type="number">0</createactivity>
+				<dataversion type="number">0</dataversion>
 				<effectsbenefits type="formattedtext">
 					<p>Your knowledge has expanded to encompass a new field. Choose a Lore skill subcategory. You become trained in it. At 3rd, 7th, and 15th levels, you gain an additional skill increase you can apply only to the chosen Lore subcategory.</p>
 				</effectsbenefits>
 				<filtercategory type="string">playercore-feats</filtercategory>
+				<footnote type="formattedtext">
+					<p />
+				</footnote>
+				<howtouse type="formattedtext">
+					<p />
+				</howtouse>
 				<level type="number">1</level>
 				<level_applied type="number">2</level_applied>
 				<locked type="number">1</locked>
 				<name type="string">Additional Lore</name>
+				<shortcut_base type="windowreference">
+					<class />
+					<recordname />
+				</shortcut_base>
 				<showapplyallactions type="number">0</showapplyallactions>
 				<source type="string">Player Core</source>
 				<special type="formattedtext">
@@ -8682,23 +8815,6 @@
 				</special>
 				<traits type="string">CONCENTRATE, SPELLSHAPE, WIZARD</traits>
 			</id-00019>
-			<id-00020>
-				<autocreate type="number">0</autocreate>
-				<createactivity type="number">0</createactivity>
-				<effectsbenefits type="formattedtext">
-					<p>You are a genius at Crafting, easily able to determine how things are made and create new inventions. You can spend downtime to invent a common formula that you don't know. This works just like the Craft activity: you spend half the Price of the formula up front, attempt a Crafting check, and on a success either finish the formula by paying the difference or work for longer to decrease the Price. The difference is that you spend the additional time in research, design, and development, rather than in creating an item. Once it's complete, you add the new formula you invented to your formula book.</p>
-					<p>The GM might allow you to invent uncommon or rare formulas, typically with an increased DC. You need the Alchemical Crafting feat to invent alchemical formulas and the Magical Crafting feat to invent magical formulas.</p>
-				</effectsbenefits>
-				<filtercategory type="string">playercore-feats</filtercategory>
-				<level type="number">2</level>
-				<level_applied type="number">6</level_applied>
-				<locked type="number">1</locked>
-				<name type="string">Inventor</name>
-				<prerequisites type="string">expert in Crafting</prerequisites>
-				<showapplyallactions type="number">0</showapplyallactions>
-				<source type="string">Player Core</source>
-				<traits type="string">DOWNTIME, GENERAL, SKILL</traits>
-			</id-00020>
 			<id-00021>
 				<action type="string">freeaction</action>
 				<autocreate type="number">0</autocreate>
@@ -9027,6 +9143,7 @@
 				<archetype type="string">Scrounger</archetype>
 				<autocreate type="number">0</autocreate>
 				<createactivity type="number">0</createactivity>
+				<dataversion type="number">0</dataversion>
 				<effectsbenefits type="formattedtext">
 					<p>You can apply the same techniques you use to reverse engineer objects to disable dangerous traps and break apart locks. You can use Crafting instead of Thievery to Disable a Device or Pick a Lock.</p>
 				</effectsbenefits>
@@ -9115,7 +9232,7 @@
 				<level type="number">6</level>
 				<level_applied type="number">14</level_applied>
 				<locked type="number">1</locked>
-				<name type="string">Advanced Arcana</name>
+				<name type="string">Advanced Arcana (Split Slot)</name>
 				<prerequisites type="string">Basic Arcana</prerequisites>
 				<showapplyallactions type="number">0</showapplyallactions>
 				<source type="string">Player Core</source>
@@ -9228,14 +9345,273 @@
 				<source type="string">Player Core</source>
 				<traits type="string">GENERAL, SKILL</traits>
 			</id-00043>
+			<id-00044>
+				<autocreate type="number">0</autocreate>
+				<benefit type="formattedtext" />
+				<createactivity type="number">0</createactivity>
+				<effectsbenefits type="formattedtext">
+					<p>You Recognize Spells swiftly. Once per round, you can Recognize a Spell using a skill in which you're a master as a free action.</p>
+				</effectsbenefits>
+				<filtercategory type="string">playercore-feats</filtercategory>
+				<level type="number">7</level>
+				<level_applied type="number">15</level_applied>
+				<locked type="number">1</locked>
+				<name type="string">Quick Recognition</name>
+				<normal type="formattedtext" />
+				<prerequisites type="string">master in Arcana, Nature, Occultism, or Religion; Recognize Spell</prerequisites>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">Player Core</source>
+				<special type="formattedtext" />
+				<traits type="string">GENERAL, SKILL</traits>
+			</id-00044>
+			<id-00045>
+				<actions />
+				<activities />
+				<autocreate type="number">0</autocreate>
+				<benefit type="formattedtext" />
+				<createactivity type="number">0</createactivity>
+				<dataversion type="number">0</dataversion>
+				<effectsbenefits type="formattedtext">
+					<p>You can prepare two spells in one slot, giving you the freedom to choose the spell when you cast it. When you prepare your spells for the day, you can choose one spell slot at least 1 rank lower than the highest-rank spell you can cast and prepare two spells in that slot. When you Cast a Spell from that slot, choose which spell to cast. Once you've chosen, the unused spell dissipates as though you hadn't prepared it at all-for example, it isn't available for use with Drain Bonded Item.</p>
+				</effectsbenefits>
+				<filtercategory type="string">playercore-wizard-6</filtercategory>
+				<footnote type="formattedtext">
+					<p />
+				</footnote>
+				<howtouse type="formattedtext">
+					<p />
+				</howtouse>
+				<level type="number">6</level>
+				<level_applied type="number">14</level_applied>
+				<locked type="number">0</locked>
+				<name type="string">Split Slot</name>
+				<normal type="formattedtext" />
+				<shortcut_base type="windowreference">
+					<class />
+					<recordname />
+				</shortcut_base>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">Player Core</source>
+				<special type="formattedtext" />
+				<traits type="string">WIZARD</traits>
+			</id-00045>
+			<id-00046>
+				<actions />
+				<activities />
+				<autocreate type="number">0</autocreate>
+				<createactivity type="number">0</createactivity>
+				<dataversion type="number">0</dataversion>
+				<effectsbenefits type="formattedtext">
+					<p>Your bloodline's deep connection to mental essence greatly enhances your spell repertoire. Add one spell to your spell repertoire for each spell rank you can cast.</p>
+				</effectsbenefits>
+				<filtercategory type="string">playercore2-sorcerer-16</filtercategory>
+				<footnote type="formattedtext">
+					<p />
+				</footnote>
+				<howtouse type="formattedtext">
+					<p />
+				</howtouse>
+				<level type="number">16</level>
+				<level_applied type="number">16</level_applied>
+				<locked type="number">1</locked>
+				<name type="string">Greater Mental Evolution</name>
+				<prerequisites type="string">Arcane Evolution or Occult Evolution</prerequisites>
+				<shortcut_base type="windowreference">
+					<class />
+					<recordname />
+				</shortcut_base>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">Player Core 2</source>
+				<special type="formattedtext">
+					<p />
+				</special>
+				<traits type="string">SORCERER</traits>
+			</id-00046>
+			<id-00047>
+				<archetype type="string">Wizard</archetype>
+				<autocreate type="number">0</autocreate>
+				<benefit type="formattedtext" />
+				<createactivity type="number">0</createactivity>
+				<effectsbenefits type="formattedtext">
+					<p>You gain one wizard feat. For the purpose of meeting its prerequisites, your wizard level is equal to half your character level.</p>
+				</effectsbenefits>
+				<filtercategory type="string">playercore-wizard-archetype</filtercategory>
+				<level type="number">6</level>
+				<level_applied type="number">16</level_applied>
+				<locked type="number">1</locked>
+				<name type="string">Advanced Arcana</name>
+				<normal type="formattedtext" />
+				<prerequisites type="string">Basic Arcana</prerequisites>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">Player Core</source>
+				<special type="formattedtext">
+					<p>You can select this feat more than once. Each time you select it, you gain another wizard feat.</p>
+				</special>
+				<traits type="string">ARCHETYPE</traits>
+			</id-00047>
+			<id-00048>
+				<actions />
+				<activities />
+				<autocreate type="number">0</autocreate>
+				<benefit type="formattedtext" />
+				<createactivity type="number">0</createactivity>
+				<dataversion type="number">0</dataversion>
+				<effectsbenefits type="formattedtext">
+					<p>Your academic knowledge about a creature allows you to subtly alter your magic to defeat them. When you critically succeed at a Recall Knowledge check about a creature, you can invoke your knowledge to make the creature take a -1 circumstance penalty to either AC and saves against the next attack you make against it, or the next spell you cast that it needs to defend against. The creature takes the same penalty to its attack or DC the next time it attacks against you or causes you to attempt a save against one of its effects.</p>
+					<p>If you share this information with your allies, they gain the benefits as well. If not used, the bonuses end after 1 minute.</p>
+				</effectsbenefits>
+				<filtercategory type="string">playercore-wizard-8</filtercategory>
+				<footnote type="formattedtext">
+					<p />
+				</footnote>
+				<howtouse type="formattedtext">
+					<p />
+				</howtouse>
+				<level type="number">8</level>
+				<level_applied type="number">16</level_applied>
+				<locked type="number">1</locked>
+				<name type="string">Knowledge is Power</name>
+				<normal type="formattedtext" />
+				<shortcut_base type="windowreference">
+					<class />
+					<recordname />
+				</shortcut_base>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">Player Core</source>
+				<special type="formattedtext" />
+				<traits type="string">WIZARD</traits>
+			</id-00048>
+			<id-00049>
+				<autocreate type="number">0</autocreate>
+				<benefit type="formattedtext" />
+				<createactivity type="number">0</createactivity>
+				<effectsbenefits type="formattedtext">
+					<p>Your training focused on Crafting one particular kind of item. Select one of the specialties listed below; you gain a +1 circumstance bonus to Crafting checks to Craft items of that type. If you are a master in Crafting, this bonus increases to +2. If it's unclear whether the specialty applies, the GM decides. Some specialties might apply only partially. For example, if you were making a morningstar and had specialty in woodworking, the GM might give you half your bonus because the item requires both blacksmithing and woodworking.</p>
+					<table>
+						<tr>
+							<td>
+								<b>SPECIALTY</b>
+							</td>
+							<td colspan="3">
+								<b>APPLICABLE ITEMS</b>
+							</td>
+						</tr>
+						<tr>
+							<td>Alchemy*</td>
+							<td colspan="3">Alchemical items such as elixirs</td>
+						</tr>
+						<tr>
+							<td>Artistry</td>
+							<td colspan="3">Fine art, including jewelry</td>
+						</tr>
+						<tr>
+							<td>Blacksmithing</td>
+							<td colspan="3">Durable metal goods, including metal armor</td>
+						</tr>
+						<tr>
+							<td>Bookmaking</td>
+							<td colspan="3">Books and paper</td>
+						</tr>
+						<tr>
+							<td>Glassmaking</td>
+							<td colspan="3">Glass, including glassware and windows</td>
+						</tr>
+						<tr>
+							<td>Leatherworking</td>
+							<td colspan="3">Leather goods, including leather armor</td>
+						</tr>
+						<tr>
+							<td>Pottery</td>
+							<td colspan="3">Ceramic goods</td>
+						</tr>
+						<tr>
+							<td>Shipbuilding</td>
+							<td colspan="3">Ships and boats</td>
+						</tr>
+						<tr>
+							<td>Stonemasonry</td>
+							<td colspan="3">Stone goods and structures</td>
+						</tr>
+						<tr>
+							<td>Tailoring</td>
+							<td colspan="3">Clothing</td>
+						</tr>
+						<tr>
+							<td>Weaving</td>
+							<td colspan="3">Textiles, baskets, and rugs</td>
+						</tr>
+						<tr>
+							<td>Woodworking</td>
+							<td colspan="3">Wooden goods and structures</td>
+						</tr>
+						<tr>
+							<td colspan="4">* Requires Alchemical Crafting to Craft.</td>
+						</tr>
+					</table>
+				</effectsbenefits>
+				<filtercategory type="string">playercore-feats</filtercategory>
+				<level type="number">1</level>
+				<level_applied type="number">16</level_applied>
+				<locked type="number">1</locked>
+				<name type="string">Specialty Crafting</name>
+				<normal type="formattedtext" />
+				<prerequisites type="string">trained in Crafting</prerequisites>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">Player Core</source>
+				<special type="formattedtext" />
+				<traits type="string">GENERAL, SKILL</traits>
+			</id-00049>
+			<id-00050>
+				<level_applied type="number">16</level_applied>
+				<name type="string">Make your own Luck</name>
+			</id-00050>
+			<id-00051>
+				<archetype type="string">Bard</archetype>
+				<autocreate type="number">0</autocreate>
+				<benefit type="formattedtext" />
+				<createactivity type="number">0</createactivity>
+				<effectsbenefits type="formattedtext">
+					<p>You gain a 1st- or 2nd-level bard feat.</p>
+				</effectsbenefits>
+				<filtercategory type="string">playercore-bard-archetype</filtercategory>
+				<level type="number">4</level>
+				<level_applied type="number">14</level_applied>
+				<locked type="number">1</locked>
+				<name type="string">Basic Muse's Whispers</name>
+				<normal type="formattedtext" />
+				<prerequisites type="string">Bard Dedication</prerequisites>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">Player Core</source>
+				<special type="formattedtext" />
+				<traits type="string">ARCHETYPE</traits>
+			</id-00051>
+			<id-00052>
+				<autocreate type="number">0</autocreate>
+				<benefit type="formattedtext" />
+				<createactivity type="number">0</createactivity>
+				<effectsbenefits type="formattedtext">
+					<p>You magically unlock memories, making them easier to recall. You learn the loremaster's etude composition spell (page 371).</p>
+				</effectsbenefits>
+				<filtercategory type="string">playercore-bard-2</filtercategory>
+				<level type="number">2</level>
+				<level_applied type="number">14</level_applied>
+				<locked type="number">1</locked>
+				<name type="string">Loremaster's Etude</name>
+				<normal type="formattedtext" />
+				<prerequisites type="string">enigma muse</prerequisites>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">Player Core</source>
+				<special type="formattedtext" />
+				<traits type="string">BARD, FORTUNE</traits>
+			</id-00052>
 		</featlist>
-		<hero type="number">0</hero>
+		<hero type="number">1</hero>
 		<hp>
 			<ancestry type="number">8</ancestry>
 			<ancestrytemp type="number">0</ancestrytemp>
 			<classperlevel type="number">6</classperlevel>
-			<classtotal type="number">165</classtotal>
-			<current type="number">170</current>
+			<classtotal type="number">176</classtotal>
+			<current type="number">184</current>
 			<dieatdying type="number">4</dieatdying>
 			<dying type="number">0</dying>
 			<miscmod type="number">0</miscmod>
@@ -9243,21 +9619,21 @@
 			<nonlethal type="number">0</nonlethal>
 			<tempmod type="number">0</tempmod>
 			<temporary type="number">0</temporary>
-			<total type="number">173</total>
-			<wounded type="number">1</wounded>
-			<wounds type="number">3</wounds>
+			<total type="number">184</total>
+			<wounded type="number">0</wounded>
+			<wounds type="number">0</wounds>
 		</hp>
 		<hpancestry type="number">8</hpancestry>
 		<hpclassperlevel type="number">6</hpclassperlevel>
 		<initiative>
 			<misc type="number">0</misc>
-			<perception type="number">20</perception>
+			<perception type="number">21</perception>
 			<perceptiontemp type="number">0</perceptiontemp>
-			<perceptiontotal type="number">20</perceptiontotal>
-			<stealth type="number">21</stealth>
+			<perceptiontotal type="number">21</perceptiontotal>
+			<stealth type="number">22</stealth>
 			<stealthtempmod type="number">0</stealthtempmod>
-			<stealthttoal type="number">21</stealthttoal>
-			<total type="number">22</total>
+			<stealthttoal type="number">22</stealthttoal>
+			<total type="number">0</total>
 		</initiative>
 		<intelligencepartial type="number">1</intelligencepartial>
 		<inventorykeepcountzero type="number">1</inventorykeepcountzero>
@@ -9639,19 +10015,14 @@
 			<id-00016>
 				<ac type="number">0</ac>
 				<acspecial type="number">0</acspecial>
-				<actions />
 				<activation type="string"> envision</activation>
-				<activities />
 				<armorstrength type="number">0</armorstrength>
-				<autocreate type="number">0</autocreate>
 				<bonus type="number">0</bonus>
 				<bulk type="string">-</bulk>
 				<carried type="number">1</carried>
 				<checkpenalty type="number">0</checkpenalty>
 				<cost type="string">250 gp</cost>
 				<count type="number">1</count>
-				<createactivity type="number">0</createactivity>
-				<dataversion type="number">0</dataversion>
 				<description type="formattedtext">
 					<p>This small figurine is carved from a single piece of silvery, spiky stone and resembles a beautiful dryad pouring water into a small pool. When you activate the muse, you are momentarily enlightened with inspiration that bolsters your performance. If you roll a success on your triggering check, you get a critical success instead.</p>
 				</description>
@@ -9659,9 +10030,6 @@
 					<p />
 				</gmnotes>
 				<hardness type="number">0</hardness>
-				<howtouse type="formattedtext">
-					<p />
-				</howtouse>
 				<isidentified type="number">1</isidentified>
 				<itembt type="number">0</itembt>
 				<itemhp type="number">0</itemhp>
@@ -9673,11 +10041,6 @@
 				<nonid_name type="string">Magical Figurine</nonid_name>
 				<range type="number">0</range>
 				<reload type="number">0</reload>
-				<shortcut_base type="windowreference">
-					<class />
-					<recordname />
-				</shortcut_base>
-				<showapplyallactions type="number">0</showapplyallactions>
 				<speedpenalty type="number">0</speedpenalty>
 				<subtype type="string">Talisman</subtype>
 				<traits type="string">Uncommon, Abjuration, Consumable, Magical, Talisman</traits>
@@ -9687,6 +10050,7 @@
 			</id-00016>
 			<id-00017>
 				<actions />
+				<activities />
 				<autocreate type="number">0</autocreate>
 				<bulk type="string">L</bulk>
 				<carried type="number">2</carried>
@@ -9694,6 +10058,7 @@
 				<cost type="string">4,500 gp</cost>
 				<count type="number">1</count>
 				<createactivity type="number">0</createactivity>
+				<dataversion type="number">0</dataversion>
 				<description type="formattedtext">
 					<p>Decorated with clear gemstones, these thick metal bands spread an inflexible layer of force over your body. The force grants you a +1 item bonus to AC and saving throws, and a maximum Dexterity modifier of +5 as armor. You can affix talismans to the bands as though they were light armor.</p>
 					<p>
@@ -9765,36 +10130,23 @@
 				<weight type="number">0.1</weight>
 			</id-00018>
 			<id-00019>
-				<actions />
 				<activation type="string"> (manipulate)</activation>
-				<activities />
 				<autocreate type="number">0</autocreate>
 				<bulk type="string">-</bulk>
 				<carried type="number">1</carried>
 				<cost type="string">450 gp</cost>
 				<count type="number">1</count>
 				<createactivity type="number">0</createactivity>
-				<dataversion type="number">0</dataversion>
 				<description type="formattedtext">
 					<p>This coin is struck with the image of a beatific seraph in gold on one side and a fearsome fiend with seven eyes enameled in black on the other. While it may seem nothing more than a curiosity, it's a powerful agent of fortune when activated.</p>
 				</description>
 				<effect type="string">Flip the coin. If it lands on the seraph side, you get a 12 on the die instead of what you rolled. If it lands on the fiend side, one of the eyes on the fiend closes. Either way, you're temporarily immune to fortune's coin for 1 hour. When all seven eyes are closed, the coin vanishes into a puff of smoke, disappearing forever. This activation is a fortune effect, regardless of how the coin flip lands.\nLost 1 charge</effect>
-				<gmnotes type="formattedtext">
-					<p />
-				</gmnotes>
-				<howtouse type="formattedtext">
-					<p />
-				</howtouse>
 				<level type="number">8</level>
 				<librarycategory type="string">Trappings of Power - Held Items</librarycategory>
 				<locked type="number">1</locked>
 				<methodofuse type="string">held in 1 hand</methodofuse>
 				<name type="string">Fortune's Coin - Gold</name>
 				<pfslegal type="string">False</pfslegal>
-				<shortcut_base type="windowreference">
-					<class />
-					<recordname />
-				</shortcut_base>
 				<showapplyallactions type="number">0</showapplyallactions>
 				<source type="string">Treasure Vault (Remastered)</source>
 				<subtype type="string">Held Items</subtype>
@@ -10012,6 +10364,89 @@
 				<type type="string">Worn Items</type>
 				<weight type="number">0</weight>
 			</id-00027>
+			<id-00028>
+				<actions />
+				<activities>
+					<id-00001>
+						<actions />
+						<activation type="string"> (concentrate)</activation>
+						<activity type="string">action</activity>
+						<autocreate type="number">0</autocreate>
+						<category type="string">Item Activities</category>
+						<category_section type="string">Item Activities</category_section>
+						<createactivity type="number">0</createactivity>
+						<dataversion type="number">0</dataversion>
+						<effectsbenefits type="formattedtext">
+							<p>You gain the effects of hypercognition.</p>
+							<linklist>
+								<link class="spelldesc" recordname="reference.spells.hypercognition@Pathfinder 2 - Player Core">Spell: Hypercognition</link>
+							</linklist>
+						</effectsbenefits>
+						<footnote type="formattedtext">
+							<p />
+						</footnote>
+						<frequency type="string">once per hour</frequency>
+						<howtouse type="formattedtext">
+							<p />
+						</howtouse>
+						<name type="string">Search Your Mind</name>
+						<shortcut type="windowreference">
+							<class>reference_activity</class>
+							<recordname />
+						</shortcut>
+						<shortcut_base type="windowreference">
+							<class />
+							<recordname />
+						</shortcut_base>
+						<showapplyallactions type="number">0</showapplyallactions>
+						<special type="formattedtext">
+							<p />
+						</special>
+						<traits type="string">concentrate</traits>
+					</id-00001>
+				</activities>
+				<autocreate type="number">0</autocreate>
+				<automation type="string">[EFFECT equip SKILL: +3 item, recall knowledge]</automation>
+				<automation_applied type="string">=</automation_applied>
+				<bulk type="string">-</bulk>
+				<carried type="number">2</carried>
+				<cost type="string">15,000 gp</cost>
+				<count type="number">1</count>
+				<createactivity type="number">1</createactivity>
+				<dataversion type="number">1.1</dataversion>
+				<description type="formattedtext">
+					<p>A trio of brilliant gems have been set into this elegant golden crown. You gain a +3 item bonus to checks to Recall Knowledge, regardless of the skill. When you invest the cloak, you either increase your Intelligence modifier by 1 or increase it to +4, whichever would give you a higher value. This gives you additional trained skills and languages, as normal for increasing your Intelligence modifier. You must select skills and languages the first time you invest the crown, and whenever you invest the same crown of intellect, you get the same skills and languages you chose the first&#160;time.</p>
+					<p>
+						<b>Activate - Search Your Mind </b>&#141; (concentrate) <b>Frequency </b>once per hour; <b>Effect </b>You gain the effects of hypercognition.</p>
+				</description>
+				<gmnotes type="formattedtext">
+					<p />
+				</gmnotes>
+				<howtouse type="formattedtext">
+					<p>When invested, carry out the following:</p>
+					<list>
+						<li>Mannually apply a modifier to your <b>Intelligence Modifier </b>found on the <b>Main Tab </b>of your Character Sheet. Adjust Intelligence modifier to reach either the +4 score or to increase it's current score by +1 by hovering over the Bonus Field next to Intelligence. If it's +3 or higher, simply <i><u>CTRL+Mouse-Wheel </u></i>over that field until you see a <b>+1 </b>indicator that raises the total modifier bonus by 1. For characters below +3, the <i><u>CTRL+Mouse-Wheel </u></i>will need to be rolled until the bonus field displays a <b>+4 </b>in it. It is important to remember that if the Belt of Long Life is removed or disenchanted for any reason, you will need to go back to that Main tab and adjust the Intelligence Bonus back to its original score.</li>
+					</list>
+				</howtouse>
+				<isidentified type="number">1</isidentified>
+				<level type="number">17</level>
+				<librarycategory type="string">Apex Items - Apex Item</librarycategory>
+				<locked type="number">1</locked>
+				<methodofuse type="string">worn circlet</methodofuse>
+				<name type="string">Crown of Intellect</name>
+				<pfslegal type="string">False</pfslegal>
+				<picture type="token">images/Crown of Intellect.webp@Pathfinder 2 - GM Core</picture>
+				<shortcut_base type="windowreference">
+					<class />
+					<recordname />
+				</shortcut_base>
+				<showapplyallactions type="number">0</showapplyallactions>
+				<source type="string">GM Core</source>
+				<subtype type="string">Apex Item</subtype>
+				<traits type="string">Apex, Invested, Magical</traits>
+				<type type="string">Apex Items</type>
+				<weight type="number">0</weight>
+			</id-00028>
 			<id-00029>
 				<autocreate type="number">0</autocreate>
 				<bulk type="string">1</bulk>
@@ -10584,44 +11019,6 @@
 				<type type="string">Trappings of Power</type>
 				<weight type="number">1</weight>
 			</id-00051>
-			<id-00052>
-				<actions />
-				<autocreate type="number">0</autocreate>
-				<bulk type="string">-</bulk>
-				<carried type="number">1</carried>
-				<cost type="string">650 gp</cost>
-				<count type="number">1</count>
-				<createactivity type="number">0</createactivity>
-				<dataversion type="number">1.1</dataversion>
-				<description type="formattedtext">
-					<p>This hat comes in many forms, such as a colorful turban or a pointy hat with a brim, and is adorned with symbols or runes. It grants you a +1 item bonus to Arcana checks and allows you to cast the prestidigitation cantrip as an arcane innate cantrip.</p>
-					<p>This larger, fancier hat grants a +2 bonus and can be activated. Each greater mage's hat has a specific 4th-rank summon spell from the arcane list woven into its fabric, typically summon animal or summon elemental. If you prepare arcane spells, you can change the spell to a different 4th-rank arcane summon spell you know when you invest it.</p>
-					<p>
-						<b>Activate - Hat Spell </b>Cast a Spell; <b>Frequency </b>once per day; <b>Effect </b>You doff the hat, causing magical energy to pour from it. You cast the spell stored in the hat.</p>
-				</description>
-				<gmnotes type="formattedtext">
-					<p />
-				</gmnotes>
-				<howtouse type="formattedtext">
-					<p />
-				</howtouse>
-				<level type="number">9</level>
-				<librarycategory type="string">Worn Items - Magical Headwear</librarycategory>
-				<locked type="number">1</locked>
-				<methodofuse type="string">worn headwear</methodofuse>
-				<name type="string">Mage's Hat - Greater(Summon Construct)</name>
-				<pfslegal type="string">False</pfslegal>
-				<shortcut_base type="windowreference">
-					<class />
-					<recordname />
-				</shortcut_base>
-				<showapplyallactions type="number">0</showapplyallactions>
-				<source type="string">GM Core</source>
-				<subtype type="string">Magical Headwear</subtype>
-				<traits type="string">Arcane, Invested</traits>
-				<type type="string">Worn Items</type>
-				<weight type="number">0</weight>
-			</id-00052>
 			<id-00053>
 				<activation type="string">Cast a Spell</activation>
 				<autocreate type="number">0</autocreate>
@@ -10710,20 +11107,20 @@
 				<name type="string">Fey</name>
 			</id-00007>
 		</languagelist>
-		<level type="number">15</level>
+		<level type="number">16</level>
 		<name type="string">Tevok</name>
-		<notes type="string">Wizard dedication: Illusion\n\nPrimary Branch:      Cascade Bearers     Lvl: 14  (0 Schatzpunkte)\nSecondary Branch: Emerald Boughs      Lvl: 7\n\nSteeped in History: You gain a +2 circumstance bonus to Recall Knowledge about the Magaambya, the tenets or history of your branch, and members of your branch.\nBranch Influence +: You gain a +2 circumstance bonus on Deception, Diplomacy, Intimidation, and Performance checks to interact with members of the branch.</notes>
+		<notes type="string">Arcane Evolution Spell: Command\n\nRetrain 15te pro 14tage kann Tevok drei Sprüche retrainen\n1te Phase 14 Tage Soc Rank 5 Slither -&gt; Heal, \n2te Phase 14 Tage\n3te Phase schon beim letzten Mal? Stefan fragen\n\n\nWizard dedication: Illusion\nBard Dedication Muse: Enigma\nCoin of Fortune (Gold): 6 Ladungen\n\nPrimary Branch:      Cascade Bearers     Lvl: 15  (0 Schatzpunkte)\nSecondary Branch: Emerald Boughs      Lvl: 7\n\nSteeped in History: You gain a +2 circumstance bonus to Recall Knowledge about the Magaambya, the tenets or history of your branch, and members of your branch.\nBranch Influence +: You gain a +2 circumstance bonus on Deception, Diplomacy, Intimidation, and Performance checks to interact with members of the branch.\n\n\nCollegiate Attendant: Arcane Cantrip Scatter Scree \n\n\nSkilled Heritage: (Diplomacy) Lvl 1 Trained Lvl 5 Expert \nCommon (Mwangi), Draconic, Orcish\nBlau Gelbe Perle von Lehrer Ot -&gt; Armband\nCantrip: Read Aura zusätzlich\nZimmer E (letztes Zimmer Süd Osten Hauptgang)\nNotes: \nIgnatci -&gt; Rabatt für Alchemistische Ausrüstung\nEsi: Unser Guide, hat ein Messi Zimmer\nChizire: Frat boy\nAnker: Gnollart, sehr scheu. Lieb aber nicht hamlos\nLumusi Yao: Köchin. Gibt uns eine Glasperle(Frucht) fürs Armband. Aushilfe gesucht -&gt; Downtime income\nXhokan: Kobold Quartermaster Pulverfass. Perle formen aus Lehm für ihn, Perle von Ihm fürs Armband(Prall gefüllter Sack). Stipendium (40gold initial, jeden Monat 4gold). Hat Pergament, Tinte, Öle, Tränke, ... at all. Weiss wer was hat was er nicht slebst hat. Er kauft uns auch Gegenstände ab. \nHeibram. Zwerg. \nAufgabe von Heibram und Esi: Geheimer Markt Küken(mind 4) von Blauen Hühnern Ojofiri, Bäuerin will wieder züchten.\nOkoro: Human Athlet, Brettspiele Fan57\n\nLehrerin Ulava (ambivalent .. vieleicht wird aus euch ja was ... oder auch nicht)\nLehrer Zuma (Excentrischer Halborc, defensive magie, Wahrsager?)\nLeherer Ayuwari (Warrior)\n\nDajermube\n1x reroll +4 (Mythisch)\n1x Harm or Heal auf 8tem Grad\n1x Sunburst or Moonburst 8th (verbraucht)\n\n\n3 Wochen downtime\n3 Monate Semester </notes>
 		<portrait type="token">portraits/Strength of Thousands/tevok.webp</portrait>
 		<proficiencies>
 			<attacks>
 				<id-00001>
 					<name type="string">Simple weapons</name>
-					<prof type="number">19</prof>
+					<prof type="number">20</prof>
 					<proflevel type="string">expert</proflevel>
 				</id-00001>
 				<id-00002>
 					<name type="string">Unarmed attacks</name>
-					<prof type="number">19</prof>
+					<prof type="number">20</prof>
 					<proflevel type="string">expert</proflevel>
 				</id-00002>
 			</attacks>
@@ -10745,7 +11142,7 @@
 				</id-00003>
 				<id-00004>
 					<name type="string">Unarmored</name>
-					<prof type="number">19</prof>
+					<prof type="number">20</prof>
 					<proflevel type="string">expert</proflevel>
 				</id-00004>
 			</defenses>
@@ -10755,32 +11152,32 @@
 					<itemmod type="number">0</itemmod>
 					<miscmod type="number">0</miscmod>
 					<name type="string">Sorcerer</name>
-					<prof type="number">17</prof>
+					<prof type="number">18</prof>
 					<proflevel type="string">trained</proflevel>
 					<tempmod type="number">0</tempmod>
-					<total type="number">32</total>
+					<total type="number">33</total>
 				</id-00001>
 				<id-00002>
 					<abilitymod type="number">5</abilitymod>
 					<itemmod type="number">0</itemmod>
 					<miscmod type="number">0</miscmod>
 					<name type="string">All</name>
-					<prof type="number">21</prof>
+					<prof type="number">22</prof>
 					<proflevel type="string">master</proflevel>
 					<spellclass_prof_type type="string">satk</spellclass_prof_type>
 					<tempmod type="number">0</tempmod>
-					<total type="number">26</total>
+					<total type="number">27</total>
 				</id-00002>
 				<id-00003>
 					<abilitymod type="number">5</abilitymod>
 					<itemmod type="number">0</itemmod>
 					<miscmod type="number">0</miscmod>
 					<name type="string">All</name>
-					<prof type="number">21</prof>
+					<prof type="number">22</prof>
 					<proflevel type="string">master</proflevel>
 					<spellclass_prof_type type="string">sdc</spellclass_prof_type>
 					<tempmod type="number">0</tempmod>
-					<total type="number">36</total>
+					<total type="number">37</total>
 				</id-00003>
 			</spellclass>
 		</proficiencies>
@@ -10794,27 +11191,27 @@
 		<saves>
 			<fortitude>
 				<abilitymod type="number">4</abilitymod>
-				<base type="number">19</base>
+				<base type="number">20</base>
 				<misc type="number">2</misc>
 				<proflevel type="string">expert</proflevel>
 				<temporary type="number">0</temporary>
-				<total type="number">25</total>
+				<total type="number">26</total>
 			</fortitude>
 			<reflex>
 				<abilitymod type="number">4</abilitymod>
-				<base type="number">19</base>
+				<base type="number">20</base>
 				<misc type="number">2</misc>
 				<proflevel type="string">expert</proflevel>
 				<temporary type="number">0</temporary>
-				<total type="number">25</total>
+				<total type="number">26</total>
 			</reflex>
 			<will>
 				<abilitymod type="number">1</abilitymod>
-				<base type="number">19</base>
+				<base type="number">20</base>
 				<misc type="number">2</misc>
 				<proflevel type="string">expert</proflevel>
 				<temporary type="number">0</temporary>
-				<total type="number">22</total>
+				<total type="number">23</total>
 			</will>
 		</saves>
 		<shieldraised type="number">0</shieldraised>
@@ -10824,146 +11221,146 @@
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Perception</label>
 				<misc type="number">0</misc>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">1</stat>
 				<state type="number">0</state>
 				<statname type="string">wisdom</statname>
-				<total type="number">20</total>
+				<total type="number">21</total>
 			</id-00001>
 			<id-00002>
 				<armorcheckmultiplier type="number">1</armorcheckmultiplier>
 				<label type="string">Stealth</label>
 				<misc type="number">0</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">4</stat>
 				<state type="number">0</state>
 				<statname type="string">dexterity</statname>
-				<total type="number">21</total>
+				<total type="number">22</total>
 			</id-00002>
 			<id-00003>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Lore</label>
 				<misc type="number">0</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">1</state>
 				<statname type="string">intelligence</statname>
 				<sublabel type="string">Nantambu Lore</sublabel>
-				<total type="number">21</total>
+				<total type="number">23</total>
 			</id-00003>
 			<id-00004>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Performance</label>
 				<misc type="number">0</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">charisma</statname>
-				<total type="number">22</total>
+				<total type="number">23</total>
 			</id-00004>
 			<id-00005>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Arcana</label>
 				<misc type="number">2</misc>
-				<prof type="number">21</prof>
+				<prof type="number">22</prof>
 				<proflevel type="string">master</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">intelligence</statname>
-				<total type="number">27</total>
+				<total type="number">29</total>
 			</id-00005>
 			<id-00006>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Occultism</label>
 				<misc type="number">0</misc>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">intelligence</statname>
-				<total type="number">23</total>
+				<total type="number">25</total>
 			</id-00006>
 			<id-00007>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Diplomacy</label>
 				<misc type="number">1</misc>
-				<prof type="number">21</prof>
+				<prof type="number">22</prof>
 				<proflevel type="string">master</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">charisma</statname>
-				<total type="number">27</total>
+				<total type="number">28</total>
 			</id-00007>
 			<id-00008>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Nature</label>
 				<misc type="number">0</misc>
-				<prof type="number">21</prof>
+				<prof type="number">22</prof>
 				<proflevel type="string">master</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">1</stat>
 				<state type="number">0</state>
 				<statname type="string">wisdom</statname>
-				<total type="number">22</total>
+				<total type="number">23</total>
 			</id-00008>
 			<id-00009>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Medicine</label>
 				<misc type="number">0</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">1</stat>
 				<state type="number">0</state>
 				<statname type="string">wisdom</statname>
-				<total type="number">18</total>
+				<total type="number">19</total>
 			</id-00009>
 			<id-00010>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Crafting</label>
 				<misc type="number">2</misc>
-				<prof type="number">23</prof>
+				<prof type="number">24</prof>
 				<proflevel type="string">legendary</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">intelligence</statname>
-				<total type="number">29</total>
+				<total type="number">31</total>
 			</id-00010>
 			<id-00011>
 				<armorcheckmultiplier type="number">1</armorcheckmultiplier>
 				<label type="string">Acrobatics</label>
 				<misc type="number">1</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">4</stat>
 				<state type="number">0</state>
 				<statname type="string">dexterity</statname>
-				<total type="number">22</total>
+				<total type="number">23</total>
 			</id-00011>
 			<id-00012>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Religion</label>
 				<misc type="number">0</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">1</stat>
 				<state type="number">0</state>
 				<statname type="string">wisdom</statname>
-				<total type="number">18</total>
+				<total type="number">19</total>
 			</id-00012>
 			<id-00013>
 				<armorcheckmultiplier type="number">1</armorcheckmultiplier>
@@ -10980,37 +11377,37 @@
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Intimidation</label>
 				<misc type="number">0</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">charisma</statname>
-				<total type="number">22</total>
+				<total type="number">23</total>
 			</id-00014>
 			<id-00015>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Deception</label>
 				<misc type="number">0</misc>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
 				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">charisma</statname>
-				<total type="number">24</total>
+				<total type="number">25</total>
 			</id-00015>
 			<id-00016>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Society</label>
 				<misc type="number">2</misc>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">intelligence</statname>
-				<total type="number">25</total>
+				<total type="number">27</total>
 			</id-00016>
 			<id-00017>
 				<armorcheckmultiplier type="number">1</armorcheckmultiplier>
@@ -11038,53 +11435,53 @@
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Lore</label>
 				<misc type="number">0</misc>
-				<prof type="number">23</prof>
+				<prof type="number">24</prof>
 				<proflevel type="string">legendary</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">intelligence</statname>
 				<sublabel type="string">Academia</sublabel>
-				<total type="number">27</total>
+				<total type="number">29</total>
 			</id-00019>
 			<id-00020>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Lore</label>
 				<misc type="number">0</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">intelligence</statname>
 				<sublabel type="string">Aliens</sublabel>
-				<total type="number">21</total>
+				<total type="number">23</total>
 			</id-00020>
 			<id-00021>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Lore</label>
 				<misc type="number">0</misc>
-				<prof type="number">23</prof>
+				<prof type="number">24</prof>
 				<proflevel type="string">legendary</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">intelligence</statname>
 				<sublabel type="string">Akiton</sublabel>
-				<total type="number">27</total>
+				<total type="number">29</total>
 			</id-00021>
 			<id-00022>
 				<armorcheckmultiplier type="number">0</armorcheckmultiplier>
 				<label type="string">Lore</label>
 				<misc type="number">0</misc>
-				<prof type="number">17</prof>
+				<prof type="number">18</prof>
 				<proflevel type="string">trained</proflevel>
 				<showonminisheet type="number">1</showonminisheet>
-				<stat type="number">4</stat>
+				<stat type="number">5</stat>
 				<state type="number">0</state>
 				<statname type="string">intelligence</statname>
 				<sublabel type="string">Piloting</sublabel>
-				<total type="number">21</total>
+				<total type="number">23</total>
 			</id-00022>
 		</skilllist>
 		<skillpoints>
@@ -11516,11 +11913,7 @@
 			</id-00018>
 		</specialabilitylist>
 		<specialset>
-			<tactics>
-				<learned type="number">0</learned>
-				<prepare type="number">0</prepare>
-				<sections />
-			</tactics>
+			<tactics />
 		</specialset>
 		<speed>
 			<armor type="number">0</armor>
@@ -11532,6 +11925,7 @@
 		</speed>
 		<spelldisplaymode type="string">action</spelldisplaymode>
 		<spelldisplaymode_gm type="string">action</spelldisplaymode_gm>
+		<spellmode type="string">standard</spellmode>
 		<spellset>
 			<id-00001>
 				<availablelevel0 type="number">2</availablelevel0>
@@ -11545,18 +11939,18 @@
 				<availablelevel7 type="number">0</availablelevel7>
 				<availablelevel8 type="number">0</availablelevel8>
 				<availablelevel9 type="number">0</availablelevel9>
-				<cl type="number">15</cl>
+				<cl type="number">16</cl>
 				<dc>
 					<ability type="string">intelligence</ability>
-					<abilitymod type="number">4</abilitymod>
+					<abilitymod type="number">5</abilitymod>
 					<item type="number">0</item>
 					<misc type="number">0</misc>
-					<prof type="number">21</prof>
+					<prof type="number">22</prof>
 					<proflevel type="string">master</proflevel>
-					<roll type="number">25</roll>
+					<roll type="number">27</roll>
 					<rolltempmod type="number">0</rolltempmod>
 					<tempmod type="number">0</tempmod>
-					<total type="number">35</total>
+					<total type="number">37</total>
 				</dc>
 				<label type="string">Wizard Spellcasting</label>
 				<levels>
@@ -14623,7 +15017,7 @@
 								<level type="number">3</level>
 								<linkedspells />
 								<locked type="number">1</locked>
-								<name type="string">Shift Blame (Split Slot / Safe Passage)</name>
+								<name type="string">Shift Blame (Split Slot)</name>
 								<range type="string">30 feet</range>
 								<savingthrow type="string">Will</savingthrow>
 								<showapplyallactions type="number">0</showapplyallactions>
@@ -14648,7 +15042,7 @@
 										<type type="string">effect</type>
 									</id-00001>
 								</actions>
-								<cast type="number">1</cast>
+								<cast type="number">0</cast>
 								<casting type="string"></casting>
 								<dataversion type="number">0</dataversion>
 								<duration type="string">24 hours</duration>
@@ -14745,7 +15139,7 @@
 								<traits type="string">CONCENTRATE, MANIPULATE, POLYMORPH</traits>
 							</id-00024>
 						</spells>
-						<totalcast type="number">1</totalcast>
+						<totalcast type="number">0</totalcast>
 						<totalprepared type="number">2</totalprepared>
 					</level3>
 					<level4>
@@ -15948,18 +16342,18 @@
 				<availablelevel8 type="number">0</availablelevel8>
 				<availablelevel9 type="number">0</availablelevel9>
 				<castertype type="string">spontaneous</castertype>
-				<cl type="number">15</cl>
+				<cl type="number">16</cl>
 				<dc>
 					<ability type="string">charisma</ability>
 					<abilitymod type="number">5</abilitymod>
 					<item type="number">0</item>
 					<misc type="number">0</misc>
-					<prof type="number">21</prof>
+					<prof type="number">22</prof>
 					<proflevel type="string">master</proflevel>
-					<roll type="number">26</roll>
+					<roll type="number">27</roll>
 					<rolltempmod type="number">0</rolltempmod>
 					<tempmod type="number">0</tempmod>
-					<total type="number">36</total>
+					<total type="number">37</total>
 				</dc>
 				<label type="string">Bard Spellcasting</label>
 				<levels>
@@ -16145,21 +16539,21 @@
 				<availablelevel5 type="number">4</availablelevel5>
 				<availablelevel6 type="number">4</availablelevel6>
 				<availablelevel7 type="number">4</availablelevel7>
-				<availablelevel8 type="number">4</availablelevel8>
+				<availablelevel8 type="number">5</availablelevel8>
 				<availablelevel9 type="number">0</availablelevel9>
 				<castertype type="string">spontaneous</castertype>
-				<cl type="number">15</cl>
+				<cl type="number">16</cl>
 				<dc>
 					<ability type="string">charisma</ability>
 					<abilitymod type="number">5</abilitymod>
 					<item type="number">0</item>
 					<misc type="number">0</misc>
-					<prof type="number">21</prof>
+					<prof type="number">22</prof>
 					<proflevel type="string">master</proflevel>
-					<roll type="number">26</roll>
+					<roll type="number">27</roll>
 					<rolltempmod type="number">0</rolltempmod>
 					<tempmod type="number">0</tempmod>
-					<total type="number">36</total>
+					<total type="number">37</total>
 				</dc>
 				<label type="string">Sorcerer</label>
 				<levels>
@@ -16513,6 +16907,70 @@
 								<traditions type="string">arcane, occult</traditions>
 								<traits type="string">CONCENTRATE, FORCE, MANIPULATE</traits>
 							</id-00001>
+							<id-00002>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">reflex</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">1</includeinminlist>
+										<label type="string">Grease</label>
+										<order type="number">2</order>
+										<targeting type="string">self</targeting>
+										<type type="string">effect</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Prone</label>
+										<order type="number">3</order>
+										<resultstate type="string">failureminus</resultstate>
+										<type type="string">effect</type>
+									</id-00003>
+								</actions>
+								<area type="string">4 contiguous 5-foot squares or</area>
+								<casting type="string"></casting>
+								<duration type="string">1 minute</duration>
+								<effects type="formattedtext">
+									<p>You conjure grease, choosing an area or target.</p>
+									<list>
+										<li>
+											<b>Area </b>All solid ground in the area is covered with grease. Each creature standing on the greasy surface must succeed at a Reflex save or an Acrobatics check against your spell DC or fall prone. Creatures using an action to move onto the greasy surface during the spell's duration must attempt either a Reflex save or an Acrobatics check to Balance. A creature that Steps or Crawls doesn't have to attempt a check or save.</li>
+										<li>
+											<b>Target </b>If you Cast the Spell on an unattended object, anyone trying to pick up the object must succeed at an Acrobatics check or Reflex save against your spell DC to do so. If you target an attended object, the creature that has the object must attempt an Acrobatics check or Reflex save. On a failure, the holder or wielder takes a -2 circumstance penalty to all checks that involve using the object; on a critical failure, the holder or wielder releases the item. The object lands in an adjacent square of the GM's choice. If you Cast this Spell on a worn object, the wearer gains a +2 circumstance bonus to Fortitude saves against attempts to grapple them.</li>
+									</list>
+								</effects>
+								<level type="number">1</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Grease (GME)</name>
+								<range type="string">30 feet</range>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">1</spcost>
+								<targets type="string">1 object of 1 Bulk or less</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, primal</traditions>
+								<traits type="string">CONCENTRATE, MANIPULATE</traits>
+							</id-00002>
 							<id-00003>
 								<actions>
 									<id-00003>
@@ -17015,6 +17473,12 @@
 								<traditions type="string">arcane, occult</traditions>
 								<traits type="string">CONCENTRATE, ILLUSION, MANIPULATE, VISUAL</traits>
 							</id-00006>
+							<id-00007>
+								<actions />
+								<name type="string">Retrieving Hook (GME)</name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">3</spcost>
+							</id-00007>
 						</spells>
 						<totalcast type="number">0</totalcast>
 						<totalprepared type="number">0</totalprepared>
@@ -17076,6 +17540,12 @@
 								<traditions type="string">arcane, primal</traditions>
 								<traits type="string">CONCENTRATE, FIRE, MANIPULATE</traits>
 							</id-00001>
+							<id-00002>
+								<actions />
+								<name type="string">Far Reach (GME)</name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">5</spcost>
+							</id-00002>
 							<id-00003>
 								<actions>
 									<id-00001>
@@ -17351,6 +17821,12 @@
 						<level type="number">4</level>
 						<maxprepared type="number">0</maxprepared>
 						<spells>
+							<id-00001>
+								<actions />
+								<name type="string">Gravity Wave (GME)</name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">7</spcost>
+							</id-00001>
 							<id-00002>
 								<actions>
 									<id-00001>
@@ -17915,6 +18391,75 @@
 								<traditions type="string">arcane, divine, occult, primal</traditions>
 								<traits type="string">CONCENTRATE, MANIPULATE</traits>
 							</id-00006>
+							<id-00008>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<atktype type="string">rangedspell</atktype>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d6</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">fire</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">2</order>
+										<type type="string">damage</type>
+									</id-00002>
+									<id-00003>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">2d6</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">fire</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">3</order>
+										<type type="string">damage</type>
+									</id-00003>
+								</actions>
+								<casting type="string"> to </casting>
+								<effects type="formattedtext">
+									<p>You fire a ray of heat and flame. Make a spell attack roll against a single creature. On a hit, the target takes 2d6 fire damage, and on a critical hit, the target takes double damage.</p>
+									<p>For each additional action you use when Casting the Spell, you can fire an additional ray at a different target, to a maximum of three rays targeting three different targets for 3 actions. These attacks each increase your multiple attack penalty, but you don't increase your multiple attack penalty until after you make all the spell attack rolls for blazing bolt. If you spend 2 or more actions Casting the Spell, the damage increases to 4d6 fire damage on a hit, and it still deals double damage on a critical hit.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The damage to each target increases by 1d6 for the 1-action version, or by 2d6 for the 2- and 3-action versions.</p>
+								</heightened>
+								<level type="number">2</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">(S) Blazing Bolt (GME)</name>
+								<range type="string">60 feet</range>
+								<savingthrow type="string">AC</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">9</spcost>
+								<superscripts type="string">H</superscripts>
+								<targets type="string">1 or more creatures</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, primal</traditions>
+								<traits type="string">ATTACK, CONCENTRATE, FIRE, MANIPULATE</traits>
+							</id-00008>
 							<id-00009>
 								<actions>
 									<id-00001>
@@ -18390,57 +18935,10 @@
 								<traits type="string">CONCENTRATE, FIRE, MANIPULATE</traits>
 							</id-00007>
 							<id-00008>
-								<actions>
-									<id-00001>
-										<atkmod type="number">0</atkmod>
-										<includeinminlist type="number">1</includeinminlist>
-										<order type="number">1</order>
-										<savedcmod type="number">0</savedcmod>
-										<savetype type="string">will</savetype>
-										<type type="string">cast</type>
-									</id-00001>
-									<id-00002>
-										<dmaxstat type="number">0</dmaxstat>
-										<durdicestatmax type="number">0</durdicestatmax>
-										<durmod type="number">0</durmod>
-										<durmult type="number">1</durmult>
-										<effectdcmod type="number">0</effectdcmod>
-										<gmonly type="number">0</gmonly>
-										<includeinminlist type="number">0</includeinminlist>
-										<label type="string">Suggestion (See text)</label>
-										<order type="number">2</order>
-										<resultstate type="string">failureminus</resultstate>
-										<type type="string">effect</type>
-									</id-00002>
-								</actions>
-								<cast type="number">0</cast>
-								<casting type="string"></casting>
-								<critfailure type="string">As failure, but the base duration is 1 hour.</critfailure>
-								<critsuccess type="string">The target is unaffected and knows you tried to control it using a spell.</critsuccess>
-								<duration type="string">varies</duration>
-								<effects type="formattedtext">
-									<p>Your honeyed words are difficult for creatures to resist. You suggest a course of action to the target, which must be phrased in such a way as to seem like a logical course of action to the target and can't be self-destructive or obviously against the target's self-interest. The target must attempt a Will save.</p>
-								</effects>
-								<failure type="string">The target immediately follows your suggestion. The spell has a duration of 1 minute, or until the target has completed a finite suggestion or the suggestion becomes self-destructive or has other obvious negative effects.</failure>
-								<heightened type="formattedtext">
-									<p>
-										<b>(8th) </b>You can target up to 10 creatures.</p>
-								</heightened>
-								<level type="number">4</level>
-								<linkedspells />
-								<locked type="number">1</locked>
-								<name type="string">(S) Suggestion</name>
-								<prepared type="number">0</prepared>
-								<range type="string">30 feet</range>
-								<savingthrow type="string">Will</savingthrow>
-								<showapplyallactions type="number">0</showapplyallactions>
-								<source type="string">Player Core</source>
+								<actions />
+								<name type="string">Living Thunderbolt (GME)</name>
+								<showapplyallactions type="number">1</showapplyallactions>
 								<spcost type="number">11</spcost>
-								<success type="string">The target is unaffected.</success>
-								<superscripts type="string">H</superscripts>
-								<targets type="string">1 creature</targets>
-								<traditions type="string">arcane, occult</traditions>
-								<traits type="string">CONCENTRATE, INCAPACITATION, LINGUISTIC, MANIPULATE, MENTAL, SUBTLE</traits>
 							</id-00008>
 							<id-00009>
 								<actions>
@@ -18885,6 +19383,39 @@
 								<traditions type="string">arcane, primal</traditions>
 								<traits type="string">CONCENTRATE, ELECTRICITY, MANIPULATE</traits>
 							</id-00008>
+							<id-00009>
+								<actions>
+									<id-00001>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<type type="string">cast</type>
+									</id-00001>
+								</actions>
+								<casting type="string">10 minutes</casting>
+								<duration type="string">until your next daily preparations</duration>
+								<effects type="formattedtext">
+									<p>You prepare a spell that will trigger later. While casting contingency, you also cast another spell of 4th rank or lower with a casting time of no more than 3 actions. This companion spell must be one that can affect you. You must make any decisions for the spell when you cast contingency, such as choosing a damage type for resist energy. During the casting, choose a trigger under which the spell will be cast, using the same restrictions as for the trigger of a Ready action. Once contingency is cast, you can cause the companion spell to come into effect as a reaction with that trigger. It affects only you, even if it would affect more creatures. If you define complicated conditions, as determined by the GM, the trigger might fail. If you cast contingency again, the newer casting supersedes the older.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(8th) </b>You can choose a spell of 5th rank or lower.</p>
+									<p>
+										<b>(9th) </b>You can choose a spell of 6th rank or lower.</p>
+									<p>
+										<b>(10th) </b>You can choose a spell of 7th rank or lower.</p>
+								</heightened>
+								<level type="number">7</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">(S) Contingency (GME)</name>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">13</spcost>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane</traditions>
+								<traits type="string">CONCENTRATE, MANIPULATE</traits>
+							</id-00009>
 							<id-00010>
 								<actions>
 									<id-00001>
@@ -19366,7 +19897,7 @@
 										<type type="string">damage</type>
 									</id-00001>
 								</actions>
-								<cast type="number">1</cast>
+								<cast type="number">0</cast>
 								<casting type="string"> to </casting>
 								<effects type="formattedtext">
 									<p>You fire a shard of solidified magic toward a creature that you can see. It automatically hits and deals 1d4+1 force damage. For each additional action you use when Casting the Spell, increase the number of shards you shoot by one, to a maximum of three shards for 3 actions. You choose the target for each shard individually. If you shoot more than one shard at the same target, combine the damage before applying bonuses or penalties to damage, resistances, weaknesses, and so forth.</p>
@@ -19517,8 +20048,53 @@
 								<traditions type="string">arcane</traditions>
 								<traits type="string">CONCENTRATE, INCARNATE, MANIPULATE</traits>
 							</id-00010>
+							<id-00011>
+								<actions />
+								<name type="string">Metallic Meteorite Glyph </name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">15</spcost>
+							</id-00011>
+							<id-00012>
+								<actions />
+								<name type="string">Earthbreaker Stride (GME)</name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">15</spcost>
+							</id-00012>
+							<id-00013>
+								<actions>
+									<id-00001>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<type type="string">cast</type>
+									</id-00001>
+								</actions>
+								<casting type="string">10 minutes</casting>
+								<duration type="string">until your next daily preparations</duration>
+								<effects type="formattedtext">
+									<p>You prepare a spell that will trigger later. While casting contingency, you also cast another spell of 4th rank or lower with a casting time of no more than 3 actions. This companion spell must be one that can affect you. You must make any decisions for the spell when you cast contingency, such as choosing a damage type for resist energy. During the casting, choose a trigger under which the spell will be cast, using the same restrictions as for the trigger of a Ready action. Once contingency is cast, you can cause the companion spell to come into effect as a reaction with that trigger. It affects only you, even if it would affect more creatures. If you define complicated conditions, as determined by the GM, the trigger might fail. If you cast contingency again, the newer casting supersedes the older.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(8th) </b>You can choose a spell of 5th rank or lower.</p>
+									<p>
+										<b>(9th) </b>You can choose a spell of 6th rank or lower.</p>
+									<p>
+										<b>(10th) </b>You can choose a spell of 7th rank or lower.</p>
+								</heightened>
+								<level type="number">7</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">(S) Contingency</name>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">15</spcost>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane</traditions>
+								<traits type="string">CONCENTRATE, MANIPULATE</traits>
+							</id-00013>
 						</spells>
-						<totalcast type="number">1</totalcast>
+						<totalcast type="number">0</totalcast>
 						<totalprepared type="number">0</totalprepared>
 					</level8>
 					<level9>
@@ -19546,18 +20122,18 @@
 				<availablelevel8 type="number">0</availablelevel8>
 				<availablelevel9 type="number">0</availablelevel9>
 				<castertype type="string">points</castertype>
-				<cl type="number">15</cl>
+				<cl type="number">16</cl>
 				<dc>
 					<ability type="string">charisma</ability>
 					<abilitymod type="number">5</abilitymod>
 					<item type="number">0</item>
 					<misc type="number">0</misc>
-					<prof type="number">21</prof>
+					<prof type="number">22</prof>
 					<proflevel type="string">master</proflevel>
-					<roll type="number">26</roll>
+					<roll type="number">27</roll>
 					<rolltempmod type="number">0</rolltempmod>
 					<tempmod type="number">0</tempmod>
-					<total type="number">36</total>
+					<total type="number">37</total>
 				</dc>
 				<label type="string">Bloodline</label>
 				<levels>
@@ -19764,18 +20340,18 @@
 				<availablelevel8 type="number">0</availablelevel8>
 				<availablelevel9 type="number">0</availablelevel9>
 				<castertype type="string">spontaneous</castertype>
-				<cl type="number">15</cl>
+				<cl type="number">16</cl>
 				<dc>
 					<ability type="string">charisma</ability>
 					<abilitymod type="number">5</abilitymod>
 					<item type="number">0</item>
 					<misc type="number">0</misc>
-					<prof type="number">21</prof>
+					<prof type="number">22</prof>
 					<proflevel type="string">master</proflevel>
-					<roll type="number">26</roll>
+					<roll type="number">27</roll>
 					<rolltempmod type="number">0</rolltempmod>
 					<tempmod type="number">0</tempmod>
-					<total type="number">36</total>
+					<total type="number">37</total>
 				</dc>
 				<label type="string">Halcyon Speaker</label>
 				<levels>
@@ -19822,7 +20398,6 @@
 								</actions>
 								<cast type="number">0</cast>
 								<casting type="string"></casting>
-								<dataversion type="number">0</dataversion>
 								<effects type="formattedtext">
 									<p>You unleash a beam of divine energy. Make a ranged spell attack against the target's AC. On a hit, the target takes 2d4 spirit damage (double damage on a critical hit).</p>
 								</effects>
@@ -19830,9 +20405,6 @@
 									<p>
 										<b>(+1) </b>The damage increases by 1d4.</p>
 								</heightened>
-								<howtouse type="formattedtext">
-									<p />
-								</howtouse>
 								<level type="number">1</level>
 								<linkedspells />
 								<locked type="number">1</locked>
@@ -19903,7 +20475,6 @@
 								</actions>
 								<cast type="number">0</cast>
 								<casting type="string"></casting>
-								<dataversion type="number">0</dataversion>
 								<effects type="formattedtext">
 									<p>You demolish the target's corrupted essence with energy from Creation's Forge. You deal 2d6 vitality damage with a basic Fortitude save. If the creature critically fails the save, it is also enfeebled 1 until the start of your next turn.</p>
 								</effects>
@@ -19911,9 +20482,6 @@
 									<p>
 										<b>(+1) </b>The damage increases by 1d6.</p>
 								</heightened>
-								<howtouse type="formattedtext">
-									<p />
-								</howtouse>
 								<level type="number">1</level>
 								<linkedspells />
 								<locked type="number">1</locked>
@@ -20199,7 +20767,7 @@
 								</heightened>
 								<level type="number">1</level>
 								<locked type="number">1</locked>
-								<name type="string">Liberating Command (MA)Tevok.xml\n</name>
+								<name type="string">Liberating Command (MA)\n</name>
 								<prepared type="number">0</prepared>
 								<range type="string">60 feet</range>
 								<showapplyallactions type="number">1</showapplyallactions>
@@ -20965,17 +21533,17 @@
 		<wealth>
 			<copper type="number">2</copper>
 			<gold type="number">3</gold>
-			<platinum type="number">2166</platinum>
+			<platinum type="number">3601</platinum>
 			<silver type="number">4</silver>
 		</wealth>
 		<weaponlist>
 			<id-00001>
 				<ammo type="number">0</ammo>
-				<attack1 type="number">23</attack1>
+				<attack1 type="number">24</attack1>
 				<attack1modifier type="number">0</attack1modifier>
-				<attack2 type="number">19</attack2>
+				<attack2 type="number">20</attack2>
 				<attack2modifier type="number">1</attack2modifier>
-				<attack3 type="number">15</attack3>
+				<attack3 type="number">16</attack3>
 				<attack3modifier type="number">2</attack3modifier>
 				<attack4 type="number">4</attack4>
 				<attack4modifier type="number">0</attack4modifier>
@@ -21003,7 +21571,7 @@
 				<isidentified type="number">1</isidentified>
 				<maxammo type="number">0</maxammo>
 				<name type="string">Dagger</name>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<rangeincrement type="number">0</rangeincrement>
 				<shortcut type="windowreference">
@@ -21015,11 +21583,11 @@
 			</id-00001>
 			<id-00002>
 				<ammo type="number">0</ammo>
-				<attack1 type="number">23</attack1>
+				<attack1 type="number">24</attack1>
 				<attack1modifier type="number">0</attack1modifier>
-				<attack2 type="number">19</attack2>
+				<attack2 type="number">20</attack2>
 				<attack2modifier type="number">1</attack2modifier>
-				<attack3 type="number">15</attack3>
+				<attack3 type="number">16</attack3>
 				<attack3modifier type="number">2</attack3modifier>
 				<attack4 type="number">4</attack4>
 				<attack4modifier type="number">0</attack4modifier>
@@ -21046,7 +21614,7 @@
 				<isidentified type="number">1</isidentified>
 				<maxammo type="number">0</maxammo>
 				<name type="string">Dagger</name>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<rangeincrement type="number">10</rangeincrement>
 				<shortcut type="windowreference">
@@ -21058,11 +21626,11 @@
 			</id-00002>
 			<id-00003>
 				<ammo type="number">0</ammo>
-				<attack1 type="number">23</attack1>
+				<attack1 type="number">24</attack1>
 				<attack1modifier type="number">0</attack1modifier>
-				<attack2 type="number">18</attack2>
+				<attack2 type="number">19</attack2>
 				<attack2modifier type="number">0</attack2modifier>
-				<attack3 type="number">13</attack3>
+				<attack3 type="number">14</attack3>
 				<attack3modifier type="number">0</attack3modifier>
 				<attack4 type="number">4</attack4>
 				<attack4modifier type="number">0</attack4modifier>
@@ -21083,7 +21651,7 @@
 				<isidentified type="number">1</isidentified>
 				<maxammo type="number">0</maxammo>
 				<name type="string">Sling</name>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<rangeincrement type="number">50</rangeincrement>
 				<shortcut type="windowreference">
@@ -21095,11 +21663,11 @@
 			</id-00003>
 			<id-00004>
 				<ammo type="number">0</ammo>
-				<attack1 type="number">23</attack1>
+				<attack1 type="number">24</attack1>
 				<attack1modifier type="number">0</attack1modifier>
-				<attack2 type="number">19</attack2>
+				<attack2 type="number">20</attack2>
 				<attack2modifier type="number">1</attack2modifier>
-				<attack3 type="number">15</attack3>
+				<attack3 type="number">16</attack3>
 				<attack3modifier type="number">2</attack3modifier>
 				<attacks type="number">3</attacks>
 				<attackstat type="string">dexterity</attackstat>
@@ -21119,7 +21687,7 @@
 				<isidentified type="number">1</isidentified>
 				<maxammo type="number">0</maxammo>
 				<name type="string">Fist</name>
-				<prof type="number">19</prof>
+				<prof type="number">20</prof>
 				<proflevel type="string">expert</proflevel>
 				<rangeincrement type="number">0</rangeincrement>
 				<shortcut type="windowreference">
