@@ -1101,7 +1101,20 @@ function parseAbilities(char) {
   const out = {};
   for (const ab of Object.keys(ABILITY_ABBR)) {
     const node = findPath(char, `abilities/${ab}`);
-    if (node) out[ab] = { score: num(node, 'score'), bonus: num(node, 'bonus') };
+    // `chargen` is the score from character creation; `miscmod` (score-level) and
+    // `bonusmodifier` (modifier-level) hold hand-entered adjustments. The ruleset has
+    // no automation handler for ability scores — processAbilityAutomation is an empty
+    // stub and isn't even registered — so apex items land here by hand, and this is
+    // the only trace of them on the sheet.
+    if (node) out[ab] = {
+      score:   num(node, 'score'),
+      bonus:   num(node, 'bonus'),
+      chargen: num(node, 'chargen'),
+      miscmod: num(node, 'miscmod'),
+      bonusmod:num(node, 'bonusmodifier'),
+      temp:    num(node, 'tempmod'),
+      damage:  num(node, 'damage'),   // drained/ability damage, applied after any boost
+    };
   }
   return out;
 }
@@ -1307,7 +1320,9 @@ function parseInventory(char, bloodlineSkills = []) {
       carried_raw:carriedRaw,
       location:   txt(item, 'location', '').trim(),
       traits:     txt(item, 'traits', ''),
+      desc:       descText(item),
       bonuses,
+      tracked:    tracked.length > 0,   // bonuses came from live effects, not description text
       automation,
     };
   });
@@ -1418,6 +1433,9 @@ function parseSpellsets(char) {
           targets:  txt(sp, 'targets'),
           duration: txt(sp, 'duration'),
           traits:   txt(sp, 'traits'),
+          // Which spell lists the spell itself appears on ("divine, primal").
+          // Blank on rows that aren't real spells, e.g. slot placeholders.
+          traditions: txt(sp, 'traditions'),
           trigger:  txt(sp, 'trigger'),
           desc,
         }];
@@ -1432,6 +1450,8 @@ function parseSpellsets(char) {
     }
     return {
       label:  txt(sc, 'label', '(unnamed)'),
+      castertype: txt(sc, 'castertype').toLowerCase(),   // 'spontaneous' | 'points' | '' (prepared)
+      tradition:  txt(sc, 'tradition').toLowerCase(),
       dc:     num(sc, 'dc/total'),
       atk:    num(sc, 'dc/roll'),   // dc/roll = prof + ability = DC - 10
       cl:     num(sc, 'cl'),
@@ -2381,6 +2401,88 @@ function checkMissingAutomation(inventory) {
   });
 }
 
+// ── Apex items (ability boost) ────────────────────────────────────────────────
+// An invested apex item raises one ability modifier by 1, or to +4 if that's
+// higher. The PFRPG2 ruleset has no ability-score automation — its [ABILITY …]
+// handler is an empty stub that onInit never registers — so the boost exists only
+// as a hand-entered `miscmod`/`bonusmodifier` on the ability, which is why the
+// items ship with a "how to use" telling you to CTRL+wheel the field yourself.
+// Reconcile both directions: an invested apex item nobody typed in, and a typed-in
+// adjustment with no apex item behind it.
+function checkApexAbility(abilities, inventory) {
+  const mod = score => Math.floor((score - 10) / 2);
+  const apexAbilityOf = item => {
+    const m = item.desc.match(
+      /increases? (?:your |the |its )?(strength|dexterity|constitution|intelligence|wisdom|charisma)\s+modifier/i);
+    return m ? m[1].toLowerCase() : null;
+  };
+
+  const apex     = inventory.filter(i => /\bapex\b/i.test(i.traits) || /\bapex\b/i.test(i.subtype));
+  if (!apex.length && !Object.values(abilities).some(d => d.miscmod || d.bonusmod)) return [];
+  const invested = apex.filter(i => i.carried_raw === '2');
+  const issues   = [];
+
+  if (invested.length > 1)
+    issues.push(`  ⚠ ${invested.length} apex items are invested (${invested.map(i => `**${i.name}**`).join(', ')}) — you can benefit from only one at a time.`);
+
+  for (const item of apex.filter(i => i.carried_raw !== '2'))
+    issues.push(`  💡 **${item.name}** is an apex item but isn't invested — its ability boost isn't active.`);
+
+  for (const item of invested) {
+    const ab = apexAbilityOf(item);
+    if (!ab) {
+      issues.push(`  💡 **${item.name}** is an invested apex item, but its description doesn't name the ability it raises — verify the boost by hand.`);
+      continue;
+    }
+    const d = abilities[ab];
+    if (!d) continue;
+    const label   = titleCase(ab);
+    const applied = d.miscmod || d.bonusmod;
+    const byHand  = d.miscmod ? `${sign(d.miscmod)} to the score` : `${sign(d.bonusmod)} to the modifier`;
+
+    // Drained and temporary score changes land on the modifier AFTER the boost,
+    // and a sheet with no chargen score (older or hand-built XML) has no baseline
+    // to work from. In both cases the arithmetic can't be reconciled, so say what
+    // can be said instead of calling a correct sheet wrong.
+    if (!d.chargen) {
+      issues.push(`  💡 **${item.name}** is invested, but this sheet records no character-creation ${label} score, so the boost can't be verified — check ${label} by hand.`);
+      continue;
+    }
+    if (d.damage || d.temp) {
+      const why = [d.damage ? `${d.damage} ability damage/drained` : '', d.temp ? `${sign(d.temp)} temporary` : '']
+        .filter(Boolean).join(' and ');
+      issues.push(`  💡 **${item.name}**: ${label} currently carries ${why}, which shifts the modifier after the apex boost — the boost can't be checked numerically while that's in effect.`);
+      continue;
+    }
+
+    const expected = Math.max(mod(d.chargen) + 1, 4);
+
+    if (!applied) {
+      // The boost may also have been typed straight into the base score, in which
+      // case chargen already contains it and there is nothing more to add — so
+      // this offers the correction rather than asserting the sheet is wrong.
+      issues.push(`  ⚠ **${item.name}** is invested but no ${label} adjustment is entered on top of the base score — FG has no ability-score automation, so it has to be typed on the Main tab. Unless the boost is already baked into the base ${d.chargen}, ${label} should be ${sign(expected)} rather than ${sign(d.bonus)}.`);
+    } else if (d.bonus !== expected) {
+      issues.push(`  ⚠ **${item.name}**: ${label} is ${sign(d.bonus)} but the apex boost puts it at ${sign(expected)} (base ${d.chargen} → ${sign(mod(d.chargen))}, then +1 or raised to +4, whichever is higher).`);
+    } else if (ab === 'intelligence') {
+      issues.push(`  💡 **${item.name}**: ${label} ${sign(expected)} is applied (base ${d.chargen}, ${byHand} by hand). An Intelligence increase also grants additional trained skills and languages — check those were added too.`);
+    }
+  }
+
+  // Every apex item claims its ability, invested or not: a stowed one already
+  // reports that its boost is inactive, and shouldn't also be reported as missing.
+  const claimed = new Set(apex.map(apexAbilityOf).filter(Boolean));
+  for (const [ab, d] of Object.entries(abilities)) {
+    if (!(d.miscmod || d.bonusmod) || claimed.has(ab)) continue;
+    const parts = [];
+    if (d.miscmod)  parts.push(`${sign(d.miscmod)} to the score (base ${d.chargen} → ${d.score})`);
+    if (d.bonusmod) parts.push(`${sign(d.bonusmod)} to the modifier`);
+    issues.push(`  ⚠ **${titleCase(ab)}**: ${parts.join(' and ')} entered by hand, landing on ${sign(d.bonus)}, with no apex item to explain it.`);
+  }
+
+  return issues;
+}
+
 function normNameForms(name) {
   const key      = name.replace(/^\([A-Z]\)\s*/, '').replace(/\*+$/, '').trim().toLowerCase();
   const noParen  = key.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
@@ -2510,6 +2612,157 @@ function checkSignatureSpells(char, spellsets) {
             `(Detected via manual heightened copies at consecutive ranks; rank ${info.maxRank} can't be verified this way since a top-rank signature spell needs no copies.)`
           );
       }
+    }
+  }
+  return issues;
+}
+
+// ── Spontaneous repertoire size (spells known per rank) ─────────────────────
+// A spontaneous caster's repertoire is a fixed width: the same number of spells
+// known at every spell rank they can cast. FG has no repertoire field — the list
+// is just rows — and several kinds of row are NOT spells known:
+//
+//   • heightened copies of a signature spell. Already merged away by
+//     dedupeSignatureClones, so a detected run counts once, at its lowest rank.
+//   • granted bonus spells and cross-list casts, which players mark with a short
+//     parenthesised tag: "(B) Haste" (bloodline), "Divine Lance (MA)" (archetype
+//     grant), "(HC) Heal" (cast from another list with these slots). Signature
+//     markers start with S ("(S) Fireball", "Ferrous Form (S8)") and DO count.
+//   • slot placeholders reserving a rank for another list — a row with neither
+//     traditions nor traits, e.g. "(1st) Halcyon Speaker".
+//   • spells that aren't on this set's tradition at all. Those can't be in this
+//     repertoire, so they're an untagged cross-list cast.
+//
+// The last rule inverts once more than a quarter of the list is off-tradition:
+// then it's the spellset's `tradition` field that doesn't describe the list
+// (halcyon spellcasting blends two traditions), not the spells that are misplaced.
+//
+// Counted names are printed with every finding, so a miscount is obvious rather
+// than mysterious — the tags above are player convention, not FG data.
+function checkRepertoireSize(spellsets) {
+  // A grant tag is 1-3 CAPITAL letters at the very start or the very end:
+  // "(B) Haste", "Divine Lance (MA)". Requiring caps and an anchor keeps ordinary
+  // parentheticals that belong to the spell's own name — "Ignition (Amp)",
+  // "Fireball (5th)", "Dragon Form (Red)" — from being mistaken for one and
+  // silently dropped. Signature markers start with S and stay counted.
+  const grantTag = name => {
+    const tag = name.match(/^\(([A-Z]{1,3})\)\s/)?.[1] ?? name.match(/\s\(([A-Z]{1,3})\)\s*$/)?.[1];
+    return tag && !tag.startsWith('S') ? tag : null;
+  };
+
+  const issues = [];
+  for (const ss of spellsets) {
+    if (ss.castertype !== 'spontaneous') continue;
+    const maxRank = ss.sigInfo?.maxRank ?? 0;
+    if (maxRank < 2) continue;              // one castable rank — nothing to compare against
+    const trad = ss.tradition;
+
+    const rows = [];
+    for (const [rank, spells] of Object.entries(ss.levels)) {
+      const r = parseInt(rank, 10);
+      if (!(r >= 1 && r <= maxRank)) continue;   // cantrips have their own allowance
+      for (const sp of spells) rows.push({ r, sp });
+    }
+    if (!rows.length) continue;
+
+    const offTrad = sp => trad && sp.traditions && !sp.traditions.toLowerCase().includes(trad);
+    const off     = rows.filter(x => offTrad(x.sp));
+    const blended = off.length * 4 > rows.length;
+
+    if (blended) {
+      issues.push(
+        `  💡 **${ss.label}**: ${off.length} of ${rows.length} spells aren't on the ${trad} list, so the ` +
+        `spellset's tradition looks like it doesn't describe this repertoire (blended-tradition ` +
+        `spellcasting). Off-tradition spells weren't excluded from the counts below.`
+      );
+    } else if (off.length) {
+      const shown = off.slice(0, 6).map(x => `'${x.sp.name}' (${x.sp.traditions}, rank ${x.r})`);
+      issues.push(
+        `  ⚠ **${ss.label}**: ${off.length} spell${off.length > 1 ? 's are' : ' is'} listed on this ${trad} ` +
+        `repertoire but not on the ${trad} list — ${shown.join(', ')}${off.length > 6 ? `, and ${off.length - 6} more` : ''}. ` +
+        `If you cast ${off.length > 1 ? 'them' : 'it'} from another list using these slots, tag the row ` +
+        `(e.g. "(HC) ${off[0].sp.name}") so it isn't counted as a spell known.`
+      );
+    }
+
+    // Slot placeholders reserving ranks for another list, applied to only some ranks.
+    const holders = {};
+    for (const { r, sp } of rows) {
+      if (sp.traditions || sp.traits) continue;
+      const label = sp.name.replace(/^\([^)]*\)\s*/, '').trim() || sp.name;
+      (holders[label] ??= new Set()).add(r);
+    }
+    for (const [label, ranks] of Object.entries(holders)) {
+      // A reservation can only exist where the list it points at actually has
+      // slots — a Halcyon Speaker who tops out at rank 5 can't reserve rank 6.
+      const source = spellsets.find(o => o !== ss && o.label.toLowerCase() === label.toLowerCase());
+      const limit  = Math.min(maxRank, source?.sigInfo?.maxRank || maxRank);
+      const missing = [];
+      for (let r = 1; r <= limit; r++) if (!ranks.has(r)) missing.push(r);
+      if (!missing.length) continue;
+      issues.push(
+        `  ⚠ **${ss.label}**: '${label}' slot placeholders sit on rank${ranks.size > 1 ? 's' : ''} ` +
+        `${[...ranks].sort((a, b) => a - b).join(', ')} but not on ${missing.join(', ')} — the reservation ` +
+        `is tracked inconsistently, so the spells-known counts below are off at the untracked ranks.`
+      );
+    }
+
+    // Spells known per rank, with the excluded rows dropped.
+    const counted = {};
+    for (const { r, sp } of rows) {
+      if (!sp.traditions && !sp.traits) continue;          // placeholder
+      if (!blended && offTrad(sp)) continue;               // cross-list cast
+      if (grantTag(sp.name)) continue;                     // granted / bonus spell
+      (counted[r] ??= []).push(sp.name);
+    }
+    // Every rank with slots takes part, including one that ended up with nothing —
+    // a rank whose picks were never entered is exactly the omission worth catching,
+    // and it has no key of its own in `counted`.
+    const ranks = [];
+    for (let r = 1; r <= maxRank; r++) {
+      if (!(ss.slots[String(r)] > 0)) continue;
+      counted[r] ??= [];
+      ranks.push(r);
+    }
+    if (ranks.length < 3) continue;                        // too little to establish a width
+
+    const tally = {};
+    for (const r of ranks) tally[counted[r].length] = (tally[counted[r].length] ?? 0) + 1;
+    // On a tie the smaller width wins, so an even split reads as "one rank has a
+    // spare row" rather than accusing the other half of a missing pick.
+    const width = Number(Object.entries(tally).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]);
+
+    // A top rank with fewer slots than the one below it has only just been gained,
+    // so a repertoire that hasn't caught up there yet isn't an omission.
+    const partialTop = (ss.slots[String(maxRank)] ?? 0) < (ss.slots[String(maxRank - 1)] ?? 0);
+    const reportable = r => counted[r].length !== width &&
+                            !(counted[r].length < width && r === maxRank && partialTop);
+
+    // Signature copies are excluded by being merged into one row, which only works
+    // when a run was detected. A spontaneous caster should have roughly one chain per
+    // rank; at most one means the copies are named per rank ("Summon Animal Grad 5")
+    // and each is being counted as its own spell known. `groups` holds every repeated
+    // base name, so requiring one keeps this off a list that simply has no copies.
+    if (ranks.some(reportable) && ss.sigInfo.groups.length > 0 &&
+        ss.sigInfo.groups.filter(g => g.isRun).length < 2) {
+      issues.push(
+        `  💡 **${ss.label}**: almost no heightened signature copies were detected on this list, so each ` +
+        `rank's copy of a signature spell is counted as its own spell known — the widths below are ` +
+        `inflated by one per signature. Compare the ranks against each other rather than the totals.`
+      );
+    }
+
+    for (const r of ranks) {
+      if (!reportable(r)) continue;
+      const names = counted[r];
+      const more = names.length > width;
+      issues.push(
+        `  ⚠ **${ss.label}**: rank ${r} has ${names.length} spell${names.length === 1 ? '' : 's'} known, ` +
+        `but the usual width on this list is ${width} — ` +
+        (more ? `${names.length - width} too many, so look for a retrained spell that was never removed or a duplicated row`
+              : `${width - names.length} short, so a repertoire pick looks missing`) +
+        ` (counted: ${names.join(', ') || 'nothing'}).`
+      );
     }
   }
   return issues;
@@ -2649,7 +2902,9 @@ function runConsistencyChecks(char, skills, effects, abilities, inventory, spell
     ['HP total',                                                       checkHp(char, abilities)],
     ['Armor check penalty',                                            checkArmorCheckPenalty(char, skills)],
     ['Missing FG automation (passive bonuses not tracked as effects)', checkMissingAutomation(inventory)],
+    ['Apex item ability boost (no FG automation — manual entry only)',  checkApexAbility(abilities, inventory)],
     ['Signature spells (spontaneous casters)',                         checkSignatureSpells(char, spellsets)],
+    ['Spells known per rank (spontaneous repertoires)',                checkRepertoireSize(spellsets)],
     ['Spell DC key attribute (per class/archetype)',                   checkSpellDcAttribute(char, abilities)],
   ].filter(([, issues]) => issues.length);
 }
@@ -2741,10 +2996,24 @@ function render(char) {
 
   // ── abilities ──────────────────────────────────────────────────────────────
   out.push('## Ability Scores', '');
+  // Hand-entered adjustments (apex items have no automation path) only get their own
+  // column when there is one to show, so the usual sheet stays three columns wide.
+  const abAdj = ([, d]) => {
+    const bits = [];
+    if (d.miscmod)  bits.push(`${sign(d.miscmod)} to score`);
+    if (d.bonusmod) bits.push(`${sign(d.bonusmod)} to modifier`);
+    if (d.temp)     bits.push(`${sign(d.temp)} temporary`);
+    return bits.length ? `${bits.join(', ')} (base ${d.chargen}, entered by hand)` : '—';
+  };
+  const anyAdj = Object.entries(abilities).some(e => abAdj(e) !== '—');
   out.push(mdTable(
-    ['Ability', 'Score', 'Modifier'],
-    Object.entries(abilities).map(([ab, d]) => [titleCase(ab), d.score, sign(d.bonus)]),
-    ['l', 'r', 'r']
+    anyAdj ? ['Ability', 'Score', 'Modifier', 'Manual adjustment'] : ['Ability', 'Score', 'Modifier'],
+    Object.entries(abilities).map(e => {
+      const row = [titleCase(e[0]), e[1].score, sign(e[1].bonus)];
+      if (anyAdj) row.push(abAdj(e));
+      return row;
+    }),
+    anyAdj ? ['l', 'r', 'r', 'l'] : ['l', 'r', 'r']
   ));
   out.push('', '---', '');
 
@@ -3074,7 +3343,11 @@ function render(char) {
     item.bulk  || '—',
     item.subtype || item.type || '—',
     item.cost  || '—',
-    item.bonuses.length ? item.bonuses.join(', ') : '—',
+    // Bonuses read off a tracked effect are raw FG notation ("SKILL: +3 item, recall
+    // knowledge"); run those through the same prettifier the Active Effects table uses.
+    !item.bonuses.length ? '—'
+      : item.tracked ? prettifyEffects(item.bonuses.join('; ')).replace(/\s*\|\s*/g, ' · ')
+      : item.bonuses.join(', '),
   ];
 
   if (worn.length) {
