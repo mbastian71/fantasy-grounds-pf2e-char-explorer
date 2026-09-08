@@ -31,7 +31,10 @@ Everything runs locally in your browser. Nothing is uploaded anywhere.
   - **Non-stacking item bonuses** (same skill, or among worn items per their text).
   - **Active effects from stowed items** and **effect-name typos** that won't match.
   - **HP** and **armor check penalty** sanity checks.
-  - **Signature spell** coverage/duplication for spontaneous casters.
+  - **Signature spell** coverage/duplication for spontaneous casters, and **spells
+    known per rank** for spontaneous repertoires.
+  - **Apex item** ability boosts — Fantasy Grounds can't automate ability scores, so
+    the boost is only ever typed in by hand and easily forgotten.
 
   It won't catch everything — it's a helper, not a rules engine — but it surfaces the
   common bookkeeping mistakes that quietly break a sheet.
@@ -94,6 +97,29 @@ same rank.
 
 In short: **one copy per rank, contiguous ranks, identical spell name** → the nicest
 overview.
+
+## Tip: naming tags (optional)
+
+The **Data Health** check counts spells known per rank — a spontaneous repertoire
+should be the same width at every rank. Rows that *aren't* spells known throw that
+count off, so mark them with a tag of **1–3 capital letters**, at the very start or
+the very end of the name:
+
+- **Granted / bonus spells** that don't count against your repertoire —
+  `(B) Haste`, `Divine Lance (MA)`.
+- **Cast from another list using these slots** — `(HC) Heal`.
+- Tags starting with **S** are signature markers and still count as a spell known —
+  `(S) Fireball`, `Ferrous Form (S8)`.
+
+The capital letters and the position matter: they're what keeps a parenthetical
+that's part of the spell's own name — `Ignition (Amp)`, `Dragon Form (Red)` — from
+being mistaken for a tag.
+
+None of this is required; untagged rows are simply counted, and a rank may then be
+reported as having one too many. Slot placeholders (a row with neither traits nor
+traditions, e.g. `(1st) Halcyon Speaker`) and spells that aren't on your
+repertoire's tradition are recognised without a tag — the latter is flagged so you
+can decide.
 
 ## Caveats — please read
 

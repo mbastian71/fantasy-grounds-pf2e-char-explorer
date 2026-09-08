@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pathbuilder ⇄ Fantasy Grounds — Deviation Check</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f26; --panel2: #232732; --border: #2e3340;
+    --text: #d8dce4; --muted: #8b93a3; --accent: #7aa2f7;
+    --ok: #4caf7d; --bad: #e5636b; --warn: #d8a657;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  h1 { margin: 0 0 4px; font-size: 19px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px; }
+  .drop {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 28px; text-align: center; color: var(--muted);
+    background: var(--panel); transition: border-color .15s, background .15s;
+    cursor: pointer;
+  }
+  .drop.hover { border-color: var(--accent); background: var(--panel2); color: var(--text); }
+  .drop strong { color: var(--text); }
+  .files { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; justify-content: center; }
+  .chip {
+    font-size: 12px; padding: 4px 10px; border-radius: 20px;
+    background: var(--panel2); border: 1px solid var(--border);
+  }
+  .chip.set { border-color: var(--ok); color: var(--ok); }
+  .summary {
+    display: flex; gap: 18px; flex-wrap: wrap; margin: 22px 0 6px;
+  }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; min-width: 120px;
+  }
+  .stat .n { font-size: 24px; font-weight: 700; line-height: 1; }
+  .stat .l { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .stat.bad .n { color: var(--bad); }
+  .stat.ok .n { color: var(--ok); }
+  .stat.warn .n { color: var(--warn); }
+  section.group { margin-top: 26px; }
+  section.group > h2 {
+    font-size: 14px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 0 0 10px; font-weight: 600;
+  }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  tr:last-child td { border-bottom: none; }
+  td.field { font-weight: 500; }
+  td.val { font-variant-numeric: tabular-nums; }
+  tr.mismatch { background: rgba(229,99,107,.09); }
+  tr.info { background: rgba(216,166,87,.07); }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 4px; font-weight: 600; }
+  .badge.match { color: var(--ok); }
+  .badge.mismatch { color: var(--bad); background: rgba(229,99,107,.15); }
+  .badge.info { color: var(--warn); background: rgba(216,166,87,.15); }
+  .badge.missing { color: var(--muted); }
+  .diff { color: var(--bad); }
+  .note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+  .toggle { cursor: pointer; user-select: none; color: var(--accent); font-size: 13px; }
+  .hidden { display: none; }
+  .spell-controls { margin: 2px 0 6px; color: var(--muted); font-size: 13px; display: flex; gap: 18px; align-items: center; }
+  .spell-controls label { cursor: pointer; user-select: none; display: inline-flex; gap: 6px; align-items: center; }
+  .caster-panel { margin-top: 14px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .caster-panel > h3 { margin: 0; padding: 8px 12px; background: var(--panel2); font-size: 13px; font-weight: 600; }
+  .caster-panel > h3 .tag { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px; text-transform: capitalize; }
+  .caster-panel > h3 .only { color: var(--warn); text-transform: none; }
+  td.lvl { width: 78px; color: var(--muted); font-size: 12px; white-space: nowrap; vertical-align: top; }
+  td.spellcell { vertical-align: top; }
+  .spell { display: inline-block; padding: 1px 6px; margin: 2px 3px 2px 0; border-radius: 4px; background: var(--panel2); font-size: 12px; }
+  .spell.diff { background: rgba(229,99,107,.18); color: #ffb3b8; }
+  .muted { color: var(--muted); }
+  .tabs { display: flex; gap: 6px; margin: 22px 0 0; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 8px 14px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600;
+    border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0;
+    user-select: none; margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); background: var(--panel); border-color: var(--border); }
+  .tab.disabled { opacity: .4; cursor: not-allowed; }
+  .tab .cnt { font-weight: 700; margin-left: 6px; }
+  .tab .cnt.bad { color: var(--bad); }
+  .tab .cnt.ok { color: var(--ok); }
+  tr.bad2 { background: rgba(229,99,107,.09); }
+  tr.warn2 { background: rgba(216,166,87,.07); }
+  td.st { width: 92px; white-space: nowrap; }
+  td.why { color: var(--muted); font-size: 12px; }
+  .err { color: var(--bad); background: rgba(229,99,107,.12); padding: 10px 14px; border-radius: 8px; margin-top: 12px; }
+  code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  footer { color: var(--muted); font-size: 12px; margin: 30px 0 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pathbuilder ⇄ Fantasy Grounds — Deviation Check</h1>
+  <div class="sub">Load a Fantasy Grounds character XML — and optionally a Pathbuilder JSON of the <em>same</em> character. The XML alone drives the rules audit; both files together drive the deviation check. Neither view is a full character sheet.</div>
+</header>
+<main>
+  <div id="drop" class="drop">
+    <strong>Drop your files here</strong> — or click to choose.<br>
+    A Fantasy Grounds <code>.xml</code> (required) and a Pathbuilder <code>.json</code> (optional).
+    Order doesn't matter; they're auto-detected.
+    <div class="files">
+      <span id="chip-pb" class="chip">Pathbuilder JSON: —</span>
+      <span id="chip-fg" class="chip">Fantasy Grounds XML: —</span>
+    </div>
+  </div>
+  <input id="file-input" type="file" accept=".json,.xml" multiple class="hidden">
+  <div id="error"></div>
+  <div id="tabs" class="tabs hidden">
+    <div class="tab active" data-tab="dev" id="tab-dev">Deviations <span class="cnt" id="cnt-dev"></span></div>
+    <div class="tab" data-tab="audit" id="tab-audit">Rules audit <span class="cnt" id="cnt-audit"></span></div>
+  </div>
+  <div id="pane-dev"><div id="report"></div></div>
+  <div id="pane-audit" class="hidden"></div>
+  <footer>
+    <strong>Deviations</strong> compares the two exports by proficiency <em>rank</em> (untrained/trained/expert/master/legendary),
+    ability score, and item/misc bonus. Feats are matched by name and may show false differences from Remaster renames.
+    <strong>Rules audit</strong> reads the Fantasy Grounds XML alone, checking it against PF2e core rules and the
+    Strength of Thousands Magaambya academia subsystem; branch levels come from the character's notes.
+    Descriptions and rules text are never compared.
+  </footer>
+</main>
+<script>
+'use strict';
+
+// ---------- generic helpers ----------
+const RANK_NAMES = ['untrained','trained','expert','master','legendary'];
+const RANK_INDEX = Object.fromEntries(RANK_NAMES.map((n,i)=>[n,i]));
+const numToRank = n => RANK_NAMES[Math.round(Number(n)/2)] || 'untrained'; // 0/2/4/6/8
+const ABIL = ['str','dex','con','int','wis','cha'];
+const ABIL_FULL = { str:'strength', dex:'dexterity', con:'constitution', int:'intelligence', wis:'wisdom', cha:'charisma' };
+const SKILLS = ['acrobatics','arcana','athletics','crafting','deception','diplomacy','intimidation',
+  'medicine','nature','occultism','performance','religion','society','stealth','survival','thievery'];
+const titleCase = s => s.replace(/\b\w/g, c => c.toUpperCase());
+const norm = s => (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
+
+// A few high-confidence Remaster spell renames (legacy name -> current name), so a
+// legacy export doesn't diff against a Remaster one. Kept small on purpose.
+const SPELL_ALIASES = {
+  'true strike': 'sure strike',
+  'magic missile': 'force barrage',
+  'ray of enfeeblement': 'enfeeble',
+  'chromatic ray': 'prismatic ray',
+  'shadow blast': 'umbral journey',
+};
+// Strip the annotations a character sheet adds around a spell name — "(B)", "(S)",
+// "(MA)", "(Split Slot)", ordinal slot tags, and a trailing "*" signature mark —
+// down to a comparable key. displaySpell keeps original capitalisation for the UI.
+function normSpell(name) {
+  const s = String(name).replace(/\([^)]*\)/g, ' ').replace(/\*/g, ' ')
+    .replace(/\s+/g, ' ').trim().toLowerCase();
+  return SPELL_ALIASES[s] || s;
+}
+function displaySpell(name) {
+  return String(name).replace(/\([^)]*\)/g, '').replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+}
+// FG stores repertoire slot headers like "(1st) Halcyon Speaker" among spells — not real spells.
+const isSlotHeader = raw => /^\s*\(\s*\d+\s*(st|nd|rd|th)\s*\)/i.test(raw);
+
+// ---------- Fantasy Grounds XML ----------
+function parseFG(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('The FG file is not valid XML.');
+  const char = doc.querySelector('root > character') || doc.querySelector('character');
+  if (!char) throw new Error('No <character> element found — is this a Fantasy Grounds export?');
+  const child = (el, tag) => el ? [...el.children].find(c => c.tagName === tag) : null;
+  const txt = (el, tag) => { const c = child(el, tag); return c ? (c.textContent || '').trim() : ''; };
+  const level = Number(txt(char, 'level')) || 0;
+
+  const abilities = {};
+  const abEl = child(char, 'abilities');
+  for (const a of ABIL) {
+    const sub = child(abEl, ABIL_FULL[a]);
+    abilities[a] = Number(txt(sub, 'score')) || 0;
+  }
+
+  const saves = {};
+  const savesEl = child(char, 'saves');
+  for (const s of ['fortitude','reflex','will']) saves[s] = txt(child(savesEl, s), 'proflevel') || 'untrained';
+
+  // skills by label
+  const skills = {};
+  let perception = 'untrained';
+  const skEl = child(char, 'skilllist');
+  if (skEl) for (const row of skEl.children) {
+    const label = txt(row, 'label');
+    const sub = txt(row, 'sublabel');
+    if (sub) continue; // lores etc.
+    const key = norm(label).replace(/\s+/g,'');
+    const rank = txt(row, 'proflevel') || (Number(txt(row,'prof'))>0 ? 'trained' : 'untrained');
+    const misc = Number(txt(row, 'misc')) || 0;
+    if (label === 'Perception') { perception = rank; continue; }
+    if (SKILLS.includes(key)) skills[key] = { rank, misc };
+  }
+
+  // spell traditions -> best rank
+  const traditions = {};
+  const ssEl = child(char, 'spellset');
+  if (ssEl) for (const row of ssEl.children) {
+    const trad = norm(txt(row, 'tradition'));
+    if (!trad) continue;
+    const dc = child(row, 'dc');
+    const rank = txt(dc, 'proflevel') || 'untrained';
+    if (!(trad in traditions) || RANK_INDEX[rank] > RANK_INDEX[traditions[trad]]) traditions[trad] = rank;
+  }
+
+  // per-caster spell lists (repertoire / spellbook), grouped by spell level
+  const casters = [];
+  if (ssEl) for (const row of ssEl.children) {
+    const lv = child(row, 'levels');
+    const byLevel = {}, keys = new Set();
+    if (lv) for (const lvl of lv.children) {
+      const lnum = Number(txt(lvl, 'level'));
+      const sps = child(lvl, 'spells');
+      if (!sps) continue;
+      for (const s of sps.children) {
+        const raw = txt(s, 'name');
+        if (!raw || isSlotHeader(raw)) continue;
+        const key = normSpell(raw);
+        if (!key) continue;
+        (byLevel[lnum] ??= []).push({ key, display: displaySpell(raw) });
+        keys.add(key);
+      }
+    }
+    casters.push({ label: txt(row, 'label'), tradition: norm(txt(row, 'tradition')), byLevel, keys });
+  }
+
+  const acEl = child(char, 'ac');
+  const ac = Number(txt(child(acEl, 'totals'), 'general')) || 0;
+
+  const coins = { pp:0, gp:0, sp:0, cp:0 };
+  const coinsEl = child(char, 'coins');
+  if (coinsEl) for (const row of coinsEl.children) {
+    const name = norm(txt(row, 'name'));
+    if (name in coins) coins[name] = Number(txt(row, 'amount')) || 0;
+  }
+
+  const feats = [];
+  const featEl = child(char, 'featlist');
+  if (featEl) for (const row of featEl.children) { const n = txt(row, 'name'); if (n) feats.push(n); }
+
+  // ----- extra detail used only by the XML-only rules audit -----
+  // Notes carry the Magaambya branch levels; FG stores newlines escaped as literal "\n".
+  const notesEl = child(char, 'notes') || char.querySelector('notes');
+  const notes = notesEl ? (notesEl.textContent || '').replace(/\\n/g, '\n') : '';
+
+  // Every skill row, Lores included (the `skills` map above deliberately drops sublabels).
+  const allSkills = [];
+  if (skEl) for (const row of skEl.children) {
+    const label = txt(row, 'label');
+    if (!label) continue;
+    allSkills.push({
+      label, sub: txt(row, 'sublabel'),
+      rank: (txt(row, 'proflevel') || 'untrained').toLowerCase(),
+      prof: Number(txt(row, 'prof')) || 0,
+      misc: Number(txt(row, 'misc')) || 0,
+    });
+  }
+
+  // Feat records keep the fields the audit needs: minimum level, the level the feat was
+  // actually applied at, traits, and the prerequisite string.
+  const featsFull = [];
+  if (featEl) for (const row of featEl.children) {
+    const n = txt(row, 'name');
+    if (!n) continue;
+    featsFull.push({
+      name: n,
+      level: Number(txt(row, 'level')) || 0,
+      applied: Number(txt(row, 'level_applied')) || 0,
+      traits: txt(row, 'traits'),
+      prereq: txt(row, 'prerequisites'),
+    });
+  }
+
+  const classEl = child(char, 'classes');
+  const className = classEl && classEl.children[0] ? txt(classEl.children[0], 'name') : '';
+
+  return {
+    name: txt(char, 'name'), level, className,
+    ancestry: txt(char, 'race'), background: txt(char, 'background'),
+    keyability: norm(txt(char, 'keyability')),
+    abilities, saves, perception, skills, traditions, ac,
+    hpAncestry: Number(txt(char, 'hpancestry')) || 0,
+    hpClass: Number(txt(char, 'hpclassperlevel')) || 0,
+    speed: Number(txt(child(char, 'speed'), 'base')) || 0,
+    coins, feats, casters,
+    notes, allSkills, featsFull,
+  };
+}
+
+// ---------- Pathbuilder JSON ----------
+function parsePB(text) {
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error('The Pathbuilder file is not valid JSON.'); }
+  const b = data.build || data;
+  if (!b || !b.abilities) throw new Error('No character data found — is this a Pathbuilder JSON export?');
+  const p = b.proficiencies || {};
+
+  const abilities = {};
+  for (const a of ABIL) abilities[a] = Number(b.abilities[a]) || 0;
+
+  const saves = { fortitude: numToRank(p.fortitude), reflex: numToRank(p.reflex), will: numToRank(p.will) };
+
+  const mods = b.mods || {};
+  const itemBonus = skill => {
+    const m = mods[titleCase(skill)];
+    if (!m) return 0;
+    // sum item bonuses (there's normally only one)
+    let v = 0;
+    for (const [k, val] of Object.entries(m)) if (/item/i.test(k)) v = Math.max(v, Number(val) || 0);
+    return v;
+  };
+  const skills = {};
+  for (const s of SKILLS) skills[s] = { rank: numToRank(p[s]), misc: itemBonus(s) };
+
+  const traditions = {};
+  for (const [field, trad] of [['castingArcane','arcane'],['castingDivine','divine'],['castingOccult','occult'],['castingPrimal','primal']]) {
+    if (p[field] != null) traditions[trad] = numToRank(p[field]);
+  }
+
+  const casters = (b.spellCasters || []).map(c => {
+    const byLevel = {}, keys = new Set();
+    for (const lvl of (c.spells || [])) {
+      const lnum = Number(lvl.spellLevel);
+      for (const nm of (lvl.list || [])) {
+        const key = normSpell(nm);
+        if (!key) continue;
+        (byLevel[lnum] ??= []).push({ key, display: displaySpell(nm) });
+        keys.add(key);
+      }
+    }
+    return { label: c.name || '', tradition: norm(c.magicTradition), byLevel, keys };
+  });
+  // Pathbuilder keeps focus spells in a separate structure; FG folds them into a
+  // spellcasting block. Collect them so the overall diff doesn't false-flag them.
+  const focusSpells = [];
+  for (const trad of Object.values(b.focus || {}))
+    for (const ab of Object.values(trad))
+      for (const nm of [...(ab.focusSpells || []), ...(ab.focusCantrips || [])]) focusSpells.push(nm);
+
+  const money = b.money || {};
+  const attr = b.attributes || {};
+  const acT = b.acTotal || {};
+
+  return {
+    name: b.name || '', level: Number(b.level) || 0, className: b.class || '',
+    ancestry: b.ancestry || '', background: b.background || '',
+    keyability: ({cha:'charisma',str:'strength',dex:'dexterity',con:'constitution',int:'intelligence',wis:'wisdom'})[norm(b.keyability)] || norm(b.keyability),
+    abilities, saves, perception: numToRank(p.perception), skills, traditions,
+    ac: Number(acT.acTotal) || 0,
+    hpAncestry: Number(attr.ancestryhp) || 0,
+    hpClass: Number(attr.classhp) || 0,
+    speed: Number(attr.speed) || 0,
+    coins: { pp: Number(money.pp)||0, gp: Number(money.gp)||0, sp: Number(money.sp)||0, cp: Number(money.cp)||0 },
+    feats: (b.feats || []).map(f => Array.isArray(f) ? f[0] : f).filter(Boolean),
+    casters, focusSpells,
+  };
+}
+
+// ---------- comparison ----------
+function rankRow(field, pb, fg) {
+  const same = pb === fg;
+  return { field, pb, fg, status: same ? 'match' : 'mismatch' };
+}
+function valRow(field, pb, fg, opts = {}) {
+  const eq = opts.eq ? opts.eq(pb, fg) : String(pb) === String(fg);
+  return { field, pb, fg, status: eq ? 'match' : (opts.soft ? 'info' : 'mismatch') };
+}
+
+function compare(pb, fg) {
+  const groups = [];
+
+  groups.push(['Identity', [
+    valRow('Name', pb.name, fg.name, { soft: true, eq: (a,b)=>norm(a)===norm(b) }),
+    valRow('Level', pb.level, fg.level),
+    valRow('Class', pb.className, fg.className, { eq: (a,b)=>norm(a)===norm(b) }),
+    valRow('Ancestry', pb.ancestry, fg.ancestry, { soft: true, eq: (a,b)=>norm(a)===norm(b) }),
+    valRow('Background', pb.background, fg.background, { soft: true, eq: (a,b)=>norm(a)===norm(b) }),
+    valRow('Key attribute', pb.keyability, fg.keyability, { eq: (a,b)=>norm(a)===norm(b) }),
+  ]]);
+
+  groups.push(['Ability scores', ABIL.map(a =>
+    valRow(titleCase(ABIL_FULL[a]), pb.abilities[a], fg.abilities[a]))]);
+
+  groups.push(['Defenses & vitals', [
+    rankRow('Fortitude', pb.saves.fortitude, fg.saves.fortitude),
+    rankRow('Reflex', pb.saves.reflex, fg.saves.reflex),
+    rankRow('Will', pb.saves.will, fg.saves.will),
+    rankRow('Perception', pb.perception, fg.perception),
+    valRow('Armor Class', pb.ac, fg.ac),
+    valRow('Ancestry HP', pb.hpAncestry, fg.hpAncestry),
+    valRow('Class HP / level', pb.hpClass, fg.hpClass),
+    valRow('Speed (base)', pb.speed, fg.speed, { soft: true }),
+  ]]);
+
+  // skills: rank + item/misc bonus
+  const skillRows = [];
+  for (const s of SKILLS) {
+    const pbS = pb.skills[s], fgS = fg.skills[s] || { rank: 'untrained', misc: 0 };
+    const rankSame = pbS.rank === fgS.rank;
+    const miscSame = Number(pbS.misc) === Number(fgS.misc);
+    let status = 'match', pbTxt = pbS.rank, fgTxt = fgS.rank;
+    if (pbS.misc || fgS.misc) { pbTxt += ` (+${pbS.misc} item)`; fgTxt += ` (+${fgS.misc} misc)`; }
+    if (!rankSame) status = 'mismatch';
+    else if (!miscSame) status = 'info';
+    skillRows.push({ field: titleCase(s), pb: pbTxt, fg: fgTxt, status });
+  }
+  groups.push(['Skills (rank · item/misc bonus)', skillRows]);
+
+  // Spell traditions. The Remaster replaced per-tradition spell proficiencies with
+  // ONE unified spellcasting proficiency (Fantasy Grounds' "all" category, per
+  // PFRPG2/scripts/data_common.lua): reaching a rank applies to every tradition you
+  // can cast in — you still add each tradition's own key attribute. Pathbuilder still
+  // tracks each tradition separately, so FG showing a HIGHER rank than Pathbuilder is
+  // expected (a note, not an error). Pathbuilder HIGHER than FG means FG hasn't caught
+  // up with a caster you advanced — that's a real deviation.
+  const tradRows = [];
+  const allTrad = new Set([...Object.keys(pb.traditions), ...Object.keys(fg.traditions)]);
+  for (const t of [...allTrad].sort()) {
+    const pbR = pb.traditions[t] || 'untrained';
+    const hasFg = t in fg.traditions;
+    const fgR = hasFg ? fg.traditions[t] : '—';
+    if (pbR === 'untrained' && !hasFg) continue; // neither side casts this tradition
+    let status;
+    if (!hasFg) status = 'mismatch';                            // PB casts it; FG has no such caster
+    else if (pbR === fgR) status = 'match';
+    else if (RANK_INDEX[pbR] < RANK_INDEX[fgR]) status = 'info'; // FG unified upward (Remaster) — expected
+    else status = 'mismatch';                                   // PB higher: FG behind
+    tradRows.push({ field: titleCase(t), pb: pbR, fg: fgR, status });
+  }
+  if (tradRows.length) groups.push(['Spellcasting proficiency', tradRows,
+    'Remaster uses one unified spellcasting proficiency (Fantasy Grounds’ “all” category): a rank applies to every tradition you can cast in — you still add each tradition’s key attribute. Pathbuilder tracks traditions separately, so a rank higher in Fantasy Grounds is expected (shown as a note). A rank higher in Pathbuilder is a real deviation — FG hasn’t caught up.']);
+
+  groups.push(['Coins', ['pp','gp','sp','cp'].map(c =>
+    valRow(c.toUpperCase(), pb.coins[c], fg.coins[c]))]);
+
+  return groups;
+}
+
+// feat diff (informational, name-based)
+const FEAT_ALIASES = {
+  'collegiate attendant dedication': 'magaambyan attendant dedication',
+};
+function featKey(name) {
+  let k = norm(name).replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  return FEAT_ALIASES[k] || k;
+}
+function featDiff(pb, fg) {
+  const pbKeys = new Map(), fgKeys = new Map();
+  for (const f of pb.feats) pbKeys.set(featKey(f), f);
+  for (const f of fg.feats) fgKeys.set(featKey(f), f);
+  const onlyPB = [], onlyFG = [];
+  for (const [k, name] of pbKeys) if (!fgKeys.has(k)) onlyPB.push(name);
+  for (const [k, name] of fgKeys) if (!pbKeys.has(k)) onlyFG.push(name);
+  return { onlyPB: onlyPB.sort(), onlyFG: onlyFG.sort() };
+}
+
+// ---------- spell comparison ----------
+function aggregateSpells(casters) {
+  const m = new Map(); // normalized key -> display name
+  for (const c of casters) for (const arr of Object.values(c.byLevel)) for (const s of arr)
+    if (!m.has(s.key)) m.set(s.key, s.display);
+  return m;
+}
+function spellDiff(pb, fg) {
+  const pm = aggregateSpells(pb.casters), fm = aggregateSpells(fg.casters);
+  for (const nm of (pb.focusSpells || [])) { const k = normSpell(nm); if (k && !pm.has(k)) pm.set(k, displaySpell(nm)); }
+  const cmp = (a, b) => a.localeCompare(b);
+  return {
+    onlyPB: [...pm].filter(([k]) => !fm.has(k)).map(([,d]) => d).sort(cmp),
+    onlyFG: [...fm].filter(([k]) => !pm.has(k)).map(([,d]) => d).sort(cmp),
+  };
+}
+// Reduce a caster label to a class/archetype key so "Archetype Wizard" (Pathbuilder)
+// pairs with "Wizard Spellcasting" (Fantasy Grounds).
+function casterKey(label) {
+  return norm(label).replace(/\b(archetype|spellcasting|dedication|multiclass|repertoire|spells?)\b/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+function pairCasters(pb, fg) {
+  const map = new Map();
+  const ent = (k, label) => { let e = map.get(k); if (!e) map.set(k, e = { key: k, label }); return e; };
+  for (const c of pb.casters) ent(casterKey(c.label), c.label).pb = c;
+  for (const c of fg.casters) ent(casterKey(c.label), c.label).fg = c;
+  return [...map.values()];
+}
+function spellCell(caster, level, other) {
+  if (!caster) return '<span class="muted">—</span>';
+  const arr = (caster.byLevel[level] || []).slice().sort((a, b) => a.display.localeCompare(b.display));
+  if (!arr.length) return '<span class="muted">—</span>';
+  return arr.map(s => {
+    const missing = other ? !other.keys.has(s.key) : true; // absent on the other side → deviation
+    return `<span class="spell ${missing ? 'diff' : ''}">${esc(s.display)}</span>`;
+  }).join(' ');
+}
+function renderFullView(pb, fg) {
+  const pairs = pairCasters(pb, fg);
+  if (!pairs.length) return '<p class="note">No spellcasters found.</p>';
+  return pairs.map(({ label, pb: pc, fg: fc }) => {
+    const trad = (pc && pc.tradition) || (fc && fc.tradition) || '';
+    const only = !fc ? '<span class="only">— only in Pathbuilder</span>'
+      : !pc ? '<span class="only">— only in Fantasy Grounds</span>' : '';
+    const levels = [...new Set([
+      ...(pc ? Object.keys(pc.byLevel) : []), ...(fc ? Object.keys(fc.byLevel) : []),
+    ].map(Number))].sort((a, b) => a - b);
+    const rows = levels.map(L => `<tr>
+      <td class="lvl">${L === 0 ? 'Cantrips' : 'Rank ' + L}</td>
+      <td class="spellcell">${spellCell(pc, L, fc)}</td>
+      <td class="spellcell">${spellCell(fc, L, pc)}</td></tr>`).join('');
+    return `<div class="caster-panel">
+      <h3>${esc(label)}<span class="tag">${esc(trad)}</span>${only}</h3>
+      <table><thead><tr><th>Rank</th><th style="width:44%">Pathbuilder</th>
+        <th style="width:44%">Fantasy Grounds</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="3" class="muted">No spells.</td></tr>'}</tbody></table></div>`;
+  }).join('');
+}
+function renderSpellSection(pb, fg) {
+  const { onlyPB, onlyFG } = spellDiff(pb, fg);
+  const max = Math.max(onlyPB.length, onlyFG.length);
+  let diffBody = '';
+  for (let i = 0; i < max; i++)
+    diffBody += `<tr><td class="val diff">${esc(onlyPB[i] || '')}</td><td class="val diff">${esc(onlyFG[i] || '')}</td></tr>`;
+  const diffTable = max
+    ? `<table><thead><tr><th style="width:50%">In Pathbuilder, not in FG</th><th style="width:50%">In FG, not in Pathbuilder</th></tr></thead><tbody>${diffBody}</tbody></table>`
+    : '<p class="note">Every spell name matches across all casters.</p>';
+  return `<section class="group"><h2>Spell selections (name-based · advisory)</h2>
+    <div class="spell-controls">
+      <label><input type="checkbox" id="spell-full"> Show full lists per class / archetype (deviations highlighted)</label>
+    </div>
+    <div id="spell-diff">${diffTable}</div>
+    <div id="spell-full-view" class="hidden">${renderFullView(pb, fg)}</div>
+    <p class="note">Names are stripped of sheet annotations — “(B)”, “(S)”, “(Split Slot)”, ordinal slot tags, a trailing “*” — before matching, and a few Remaster renames are aliased. Pathbuilder focus spells are folded into this overall diff (FG stores them inside a spellcasting block); the per-class view lists repertoire / spellbook spells only. Other Remaster renames can still show as differences.</p>
+  </section>`;
+}
+
+// ---------- XML-only rules audit ----------
+// Checks the FG sheet against PF2e core rules and the Strength of Thousands
+// Magaambya academia subsystem (Adventure Path #169 / AoN "Life in the Academy").
+// Branch levels are read from the character's notes.
+
+const BRANCHES = {
+  'cascade bearers': { label: 'Cascade Bearers', skills: ['arcana','occultism','religion'],
+    lore: 'Academia Lore', general: 'Canny Acumen',
+    feat6: "Cascade Bearer's Flexibility", feat10: "Cascade Bearer's Spellcasting" },
+  'emerald boughs': { label: 'Emerald Boughs', skills: ['deception','diplomacy','society'],
+    lore: 'a settlement Lore (e.g. Nantambu)', general: 'Adopted Ancestry',
+    feat6: 'Emerald Boughs Accustomation', feat10: 'Emerald Boughs Hideaway' },
+  'rain-scribes': { label: 'Rain-Scribes', skills: ['medicine','nature','survival'],
+    lore: 'a terrain Lore', general: 'Fleet',
+    feat6: 'Rain-Scribe Sustenance', feat10: 'Rain-Scribe Mobility' },
+  'tempest-sun mages': { label: 'Tempest-Sun Mages', skills: ['intimidation','performance'],
+    lore: 'Warfare Lore', general: 'Toughness',
+    feat6: 'Tempest-Sun Redirection', feat10: 'Tempest-Sun Shielding' },
+  'uzunjati': { label: 'Uzunjati', skills: ['crafting','lore'],
+    lore: 'any Lore', general: 'Incredible Initiative',
+    feat6: 'Uzunjati Storytelling', feat10: 'Uzunjati Recollection' },
+};
+// Written many ways across sheets ("Rain Scribes", "Tempest Sun Mages", …). Longest first.
+const BRANCH_ALIASES = [
+  ['cascade bearers', 'cascade bearers'],
+  ['emerald boughs', 'emerald boughs'],
+  ['tempest sun mages', 'tempest-sun mages'],
+  ['tempest sun', 'tempest-sun mages'],
+  ['rain scribes', 'rain-scribes'],
+  ['rainscribes', 'rain-scribes'],
+  ['uzunjati', 'uzunjati'],
+];
+// Branch levels that grant a skill increase, and those that grant a skill feat.
+const BRANCH_INCREASE_LEVELS = [6, 10, 14, 18];
+// PF2e: skill increases at 3rd and every odd level after; Additional Lore adds its own.
+const BASE_INCREASE_LEVELS = [3, 5, 7, 9, 11, 13, 15, 17, 19];
+const ADDL_LORE_LEVELS = [3, 7, 15];
+// Feats whose own text allows taking them more than once.
+const REPEATABLE = new Set(['additional lore','advanced wilding','assurance','adopted ancestry',
+  'advanced arcana','basic arcana','order explorer','skill training','additional companion',
+  'general training','ancestral paragon','advanced muse’s whispers','canny acumen']);
+
+const featKeyA = n => String(n)
+  .replace(/\[[^\]]*\]/g, ' ')           // drop sheet tags anywhere: "[W]", "[Study]", "[Master at lv 17]"
+  .replace(/\s*\(.*?\)\s*/g, ' ')        // drop parentheticals
+  .replace(/\s+/g, ' ').trim().toLowerCase();
+
+// The dedication was renamed in the Remaster; accept either spelling.
+const ATTENDANT = ['magaambyan attendant dedication', 'collegiate attendant dedication'];
+
+function parseBranches(notes) {
+  const out = [], seen = new Set();
+  for (const raw of String(notes || '').split(/\n+/)) {
+    const line = raw.replace(/[-–]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!line) continue;
+    const low = line.toLowerCase();
+    for (const [alias, key] of BRANCH_ALIASES) {
+      const at = low.indexOf(alias);
+      if (at < 0 || seen.has(key)) continue;
+      const after = line.slice(at + alias.length);
+      const m = after.match(/lvl[.:\s]*(\d{1,2})/i) || after.match(/\((\d{1,2})\)/)
+             || after.match(/[:\s]\s*(\d{1,2})\b/);
+      if (!m) continue;                       // a mention with no level - keep looking
+      const role = /secondary|^\s*2\s*\)/i.test(line) ? 'secondary'
+                 : /primary|^\s*1\s*\)/i.test(line) ? 'primary' : null;
+      out.push({ key, level: Number(m[1]), role, line: raw.trim() });
+      seen.add(key);
+      break;
+    }
+  }
+  out.forEach((b, i) => { if (!b.role) b.role = i === 0 ? 'primary' : 'secondary'; });
+  return out;
+}
+
+function auditFG(fg) {
+  const L = fg.level;
+  const own = new Set(fg.featsFull.map(f => featKeyA(f.name)));
+  const has = n => own.has(featKeyA(n));
+  const sections = [];
+  const add = (title, rows, note) => { if (rows.length) sections.push({ title, rows, note }); };
+  const R = (check, detail, status) => ({ check, detail, status });
+
+  const skillRank = name => {          // best rank for a skill name, Lores included
+    const n = norm(name);
+    let best = null;
+    for (const s of fg.allSkills) {
+      if (norm(s.label) === n || (s.sub && norm(s.sub).includes(n))) {
+        const i = RANK_INDEX[s.rank];
+        if (i !== undefined && (best === null || i > best)) best = i;
+      }
+    }
+    return best;
+  };
+
+  // ---- Magaambya branch benefits ----
+  const branches = parseBranches(fg.notes);
+  const branchRows = [];
+  const loreBranches = branches.filter(b => b.level >= 1).length;
+  if (!branches.length) {
+    branchRows.push(R('Branch levels', 'No Magaambya branch levels found in the character notes — branch checks skipped.', 'note'));
+  }
+  let attendantDue = false;
+  for (const b of branches) {
+    const cfg = BRANCHES[b.key];
+    const tag = `${cfg.label} (${b.role}, branch ${b.level})`;
+    if (b.level >= 3) attendantDue = true;
+    if (b.level >= 7) {
+      branchRows.push(R(`${tag} — branch feat 7`, cfg.feat6,
+        has(cfg.feat6) ? 'ok' : 'missing'));
+    }
+    if (b.level >= 12) {
+      branchRows.push(R(`${tag} — branch feat 12`, cfg.feat10,
+        has(cfg.feat10) ? 'ok' : 'missing'));
+    }
+    if (b.level >= 8) {
+      branchRows.push(R(`${tag} — general feat 8`, cfg.general,
+        has(cfg.general) ? 'ok' : 'note'));
+    }
+  }
+  if (attendantDue) {
+    branchRows.push(R('Dedicated Attendant (branch 3)', 'Magaambyan Attendant Dedication',
+      ATTENDANT.some(has) ? 'ok' : 'missing'));
+  }
+  // Branch level 1 grants Additional Lore, once per branch.
+  const addLoreFeats = fg.featsFull.filter(f => featKeyA(f.name) === 'additional lore');
+  if (loreBranches) {
+    branchRows.push(R('Additional Lore feats (branch 1, one per branch)',
+      `${addLoreFeats.length} on the sheet, ${loreBranches} expected`,
+      addLoreFeats.length >= loreBranches ? 'ok' : 'missing'));
+  }
+  add('Magaambya branch benefits', branchRows,
+    'Branch levels are read from the character notes. Branch feat 7 grants the 6th-level branch archetype feat; if you already have it you instead gain a class feat of 6th level or lower. The branch-8 general feat converts to a 1st-level general feat if already owned.');
+
+  // ---- skill increase budget ----
+  const baseInc = BASE_INCREASE_LEVELS.filter(n => n <= L).length;
+  const branchInc = branches.reduce((a, b) => a + BRANCH_INCREASE_LEVELS.filter(n => n <= b.level).length, 0);
+  const loreStepsEach = ADDL_LORE_LEVELS.filter(n => n <= L).length;
+  const addLoreInc = addLoreFeats.length * loreStepsEach;
+  const budget = baseInc + branchInc + addLoreInc;
+  let steps = 0, trained = 0;
+  for (const s of fg.allSkills) {
+    if (s.label === 'Perception') continue;
+    const i = RANK_INDEX[s.rank];
+    if (i === undefined || i === 0) continue;
+    steps += i; trained++;
+  }
+  const observed = steps - trained;   // steps above trained can only come from increases
+  const delta = observed - budget;
+  const budgetRows = [R('Skill increases available',
+      `${budget} = ${baseInc} base (levels 3/5/7/…) + ${branchInc} branch (branch 6/10/14/18) + ${addLoreInc} Additional Lore`, 'note'),
+    R('Skill increases spent', `${observed} steps above trained across all skills`, 'note'),
+    R('Balance', delta === 0 ? 'Balanced.'
+        : delta < 0 ? `${-delta} increase(s) appear unspent.`
+        : `${delta} step(s) more than the budget allows.` +
+          (addLoreFeats.length < loreBranches
+            ? ' Likely understated — Additional Lore feats are missing from the sheet, and each would add increases to the budget.'
+            : ''),
+      // A shortfall is a reliable signal; a small surplus usually just means an
+      // uncounted dedication/heritage grant, so only a sizeable one is flagged.
+      delta === 0 ? 'ok' : delta < 0 ? 'missing' : delta <= 2 ? 'note' : 'bad')];
+  // Additional Lore carries its own increases; a lore held since early play should be maxed.
+  if (addLoreFeats.length && L >= 3) {
+    const lores = fg.allSkills.filter(s => norm(s.label) === 'lore');
+    const met = lores.filter(s => (RANK_INDEX[s.rank] || 0) - 1 >= loreStepsEach).length;
+    if (met < addLoreFeats.length) {
+      budgetRows.push(R('Additional Lore increases',
+        `${addLoreFeats.length} Additional Lore feat(s), but only ${met} Lore(s) reached ${RANK_NAMES[loreStepsEach + 1]} — ` +
+        `each grants free increases at levels ${ADDL_LORE_LEVELS.filter(n => n <= L).join('/')}.`, 'missing'));
+    }
+  }
+  add('Skill increase budget', budgetRows,
+    'Approximate: increases granted by dedications or heritages (e.g. Medic Dedication’s expert in Medicine, Skilled Heritage’s expert at 5) are not counted, so a small surplus is normal. A shortfall usually means an increase was never applied.');
+
+  // ---- proficiency arithmetic ----
+  const profRows = [];
+  for (const s of fg.allSkills) {
+    const i = RANK_INDEX[s.rank];
+    if (i === undefined) continue;
+    const expect = i === 0 ? 0 : L + i * 2;
+    if (s.prof !== expect) {
+      profRows.push(R(s.label + (s.sub ? ` (${s.sub})` : ''),
+        `${s.rank}: prof ${s.prof}, expected ${expect}`, 'bad'));
+    }
+  }
+  add('Proficiency arithmetic', profRows,
+    'For a trained-or-better skill the proficiency bonus is level + rank bonus (2/4/6/8); untrained is 0.');
+
+  // ---- feat legality ----
+  const featRows = [];
+  for (const f of fg.featsFull) {
+    if (f.level > L) featRows.push(R(f.name, `feat level ${f.level} exceeds character level ${L}`, 'bad'));
+  }
+  const counts = {};
+  for (const f of fg.featsFull) {
+    const k = featKeyA(f.name);
+    (counts[k] ??= []).push(f);
+  }
+  for (const [k, list] of Object.entries(counts)) {
+    if (list.length > 1 && !REPEATABLE.has(k)) {
+      const at = list.map(f => f.applied || '?').join(', ');
+      featRows.push(R(list[0].name, `taken ${list.length}× (applied at level ${at}) but not repeatable`, 'bad'));
+    }
+  }
+  // skill-rank prerequisites
+  for (const f of fg.featsFull) {
+    if (!f.prereq) continue;
+    const re = /\b(trained|expert|master|legendary)\s+in\s+([^;.]+)/gi;
+    let m;
+    while ((m = re.exec(f.prereq))) {
+      const need = RANK_INDEX[m[1].toLowerCase()];
+      // A comma only introduces an alternative when the clause also says "or"
+      // ("trained in Arcana, Nature, or Religion"). Otherwise the comma starts a
+      // separate requirement ("trained in Diplomacy, Treat Condition"), so keep the first.
+      const tail = m[2].split(/\band\b/i)[0];
+      const parts = /\bor\b/i.test(tail) ? tail.split(/,|\bor\b/i) : [tail.split(',')[0]];
+      const opts = parts.map(o => o.trim().replace(/[.;]$/, ''))
+        .filter(o => /^[A-Za-z][A-Za-z \-]{2,24}$/.test(o));
+      if (!opts.length) continue;
+      const ranks = opts.map(o => [o, skillRank(o)]).filter(([, r]) => r !== null);
+      if (!ranks.length) continue;                       // skill not on the sheet - can't judge
+      if (ranks.some(([, r]) => r >= need)) continue;    // satisfied
+      featRows.push(R(f.name,
+        `needs ${m[1].toLowerCase()} in ${opts.join(' / ')} — has ` +
+        ranks.map(([o, r]) => `${o} ${RANK_NAMES[r]}`).join(', '), 'bad'));
+    }
+  }
+  add('Feat legality', featRows,
+    'Covers feats above the character’s level, non-repeatable feats taken twice, and unmet skill-rank prerequisites. Prerequisites naming classes, ancestries or features are not evaluated.');
+
+  return { sections, branches, level: L };
+}
+
+function renderAudit(fg) {
+  const pane = document.getElementById('pane-audit');
+  pane.innerHTML = '';
+  const { sections, branches } = auditFG(fg);
+
+  const bad = sections.reduce((a, s) => a + s.rows.filter(r => r.status === 'bad' || r.status === 'missing').length, 0);
+  const notes = sections.reduce((a, s) => a + s.rows.filter(r => r.status === 'note').length, 0);
+  const ok = sections.reduce((a, s) => a + s.rows.filter(r => r.status === 'ok').length, 0);
+
+  const branchLine = branches.length
+    ? branches.map(b => `${BRANCHES[b.key].label} <span class="muted">${b.role} · branch ${b.level}</span>`).join(' &nbsp;·&nbsp; ')
+    : '<span class="muted">no branches found in notes</span>';
+
+  pane.appendChild(el(`<div class="summary">
+    <div class="stat ${bad ? 'bad' : 'ok'}"><div class="n">${bad}</div><div class="l">issues</div></div>
+    <div class="stat ok"><div class="n">${ok}</div><div class="l">checks passed</div></div>
+    <div class="stat"><div class="n">${fg.level}</div><div class="l">character level</div></div>
+  </div>`));
+  pane.appendChild(el(`<section class="group"><h2>${esc(fg.name || 'Character')} — ${esc(fg.className || '')}</h2>
+    <p class="note">${branchLine}</p></section>`));
+
+  const badge = st => st === 'ok' ? '<span class="badge match">✓</span>'
+    : st === 'missing' ? '<span class="badge mismatch">MISSING</span>'
+    : st === 'bad' ? '<span class="badge mismatch">CHECK</span>'
+    : '<span class="badge info">info</span>';
+
+  for (const s of sections) {
+    const body = s.rows.map(r => {
+      const cls = (r.status === 'bad' || r.status === 'missing') ? 'bad2' : r.status === 'note' ? 'warn2' : '';
+      return `<tr class="${cls}"><td class="field">${esc(r.check)}</td>
+        <td class="why">${esc(r.detail)}</td><td class="st">${badge(r.status)}</td></tr>`;
+    }).join('');
+    pane.appendChild(el(`<section class="group"><h2>${esc(s.title)}</h2>
+      <table><thead><tr><th style="width:36%">Check</th><th>Detail</th><th style="width:92px"></th></tr></thead>
+      <tbody>${body}</tbody></table>${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}</section>`));
+  }
+  return bad;
+}
+
+// ---------- rendering ----------
+function el(html) { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function render(pb, fg) {
+  const report = document.getElementById('report');
+  report.innerHTML = '';
+  const groups = compare(pb, fg);
+
+  let mismatches = 0, infos = 0, checks = 0;
+  for (const [, rows] of groups) for (const r of rows) { checks++; if (r.status === 'mismatch') mismatches++; else if (r.status === 'info') infos++; }
+
+  const summary = el(`<div class="summary">
+    <div class="stat ${mismatches ? 'bad' : 'ok'}"><div class="n">${mismatches}</div><div class="l">deviations</div></div>
+    <div class="stat ${infos ? 'warn' : ''}"><div class="n">${infos}</div><div class="l">minor / naming</div></div>
+    <div class="stat ok"><div class="n">${checks - mismatches - infos}</div><div class="l">match</div></div>
+    <div class="stat"><div class="n">${checks}</div><div class="l">fields checked</div></div>
+  </div>`);
+  report.appendChild(summary);
+
+  const badge = st => st === 'match' ? '<span class="badge match">✓</span>'
+    : st === 'mismatch' ? '<span class="badge mismatch">DIFF</span>'
+    : '<span class="badge info">note</span>';
+
+  for (const [title, rows, note] of groups) {
+    const body = rows.map(r => {
+      const cls = r.status === 'mismatch' ? 'mismatch' : r.status === 'info' ? 'info' : '';
+      const dv = r.status === 'mismatch' ? 'diff' : '';
+      return `<tr class="${cls}">
+        <td class="field">${esc(r.field)}</td>
+        <td class="val">${esc(r.pb)}</td>
+        <td class="val ${dv}">${esc(r.fg)}</td>
+        <td>${badge(r.status)}</td></tr>`;
+    }).join('');
+    report.appendChild(el(`<section class="group"><h2>${esc(title)}</h2>
+      <table><thead><tr>
+        <th style="width:34%">Field</th><th style="width:30%">Pathbuilder</th>
+        <th style="width:30%">Fantasy Grounds</th><th style="width:6%"></th></tr></thead>
+      <tbody>${body}</tbody></table>${note ? `<p class="note">${esc(note)}</p>` : ''}</section>`));
+  }
+
+  // feats (informational)
+  const fd = featDiff(pb, fg);
+  if (!fd.onlyPB.length && !fd.onlyFG.length) {
+    report.appendChild(el(`<section class="group"><h2>Feats (name-based · advisory)</h2>
+      <p class="note">Every feat name matches between the two exports.</p></section>`));
+  } else {
+    const max = Math.max(fd.onlyPB.length, fd.onlyFG.length);
+    let body = '';
+    for (let i = 0; i < max; i++) {
+      body += `<tr><td class="val diff">${esc(fd.onlyPB[i] || '')}</td><td class="val diff">${esc(fd.onlyFG[i] || '')}</td></tr>`;
+    }
+    report.appendChild(el(`<section class="group"><h2>Feats (name-based · advisory)</h2>
+      <table><thead><tr><th style="width:50%">In Pathbuilder, not in FG</th><th style="width:50%">In FG, not in Pathbuilder</th></tr></thead>
+      <tbody>${body}</tbody></table>
+      <p class="note">Name-based comparison. Remaster renames (e.g. Collegiate Attendant → Magaambyan Attendant) and archetype-grant nesting can cause harmless differences here.</p></section>`));
+  }
+
+  // spell selections (with a toggle between differences-only and full side-by-side lists)
+  report.insertAdjacentHTML('beforeend', renderSpellSection(pb, fg));
+  const chk = document.getElementById('spell-full');
+  if (chk) chk.addEventListener('change', () => {
+    document.getElementById('spell-diff').classList.toggle('hidden', chk.checked);
+    document.getElementById('spell-full-view').classList.toggle('hidden', !chk.checked);
+  });
+}
+
+// ---------- file handling ----------
+let pbData = null, fgData = null;
+function setChips() {
+  const cp = document.getElementById('chip-pb'), cf = document.getElementById('chip-fg');
+  cp.textContent = 'Pathbuilder JSON: ' + (pbData ? pbData.name || 'loaded' : '—');
+  cf.textContent = 'Fantasy Grounds XML: ' + (fgData ? fgData.name || 'loaded' : '—');
+  cp.classList.toggle('set', !!pbData);
+  cf.classList.toggle('set', !!fgData);
+}
+function showError(msg) {
+  document.getElementById('error').innerHTML = msg ? `<div class="err">${esc(msg)}</div>` : '';
+}
+function showTab(which) {
+  if (which === 'dev' && !(pbData && fgData)) return;   // deviations need both files
+  for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === which);
+  document.getElementById('pane-dev').classList.toggle('hidden', which !== 'dev');
+  document.getElementById('pane-audit').classList.toggle('hidden', which !== 'audit');
+}
+function tryRender() {
+  const tabs = document.getElementById('tabs');
+  const devTab = document.getElementById('tab-dev');
+
+  if (fgData) {
+    const issues = renderAudit(fgData);
+    const c = document.getElementById('cnt-audit');
+    c.textContent = issues || '';
+    c.className = 'cnt ' + (issues ? 'bad' : 'ok');
+  }
+  if (pbData && fgData) {
+    if (norm(pbData.name) && norm(fgData.name) && norm(pbData.name) !== norm(fgData.name)) {
+      showError(`Heads up: the two files appear to be different characters — “${pbData.name}” vs “${fgData.name}”. Comparing anyway.`);
+    }
+    render(pbData, fgData);
+  }
+
+  if (!fgData) { tabs.classList.add('hidden'); return; }
+  tabs.classList.remove('hidden');
+  const bothLoaded = !!(pbData && fgData);
+  devTab.classList.toggle('disabled', !bothLoaded);
+  devTab.title = bothLoaded ? '' : 'Load a Pathbuilder JSON to compare the two exports.';
+  // With only the XML, the audit is the only view that has anything to say.
+  showTab(bothLoaded ? 'dev' : 'audit');
+}
+async function ingest(file) {
+  const text = await file.text();
+  const looksJson = file.name.toLowerCase().endsWith('.json') || /^\s*[\[{]/.test(text);
+  try {
+    if (looksJson) { pbData = parsePB(text); }
+    else { fgData = parseFG(text); }
+    showError('');
+  } catch (e) {
+    showError(`${file.name}: ${e.message}`);
+    return;
+  }
+  setChips();
+  tryRender();
+}
+
+for (const t of document.querySelectorAll('.tab')) {
+  t.addEventListener('click', () => { if (!t.classList.contains('disabled')) showTab(t.dataset.tab); });
+}
+
+const drop = document.getElementById('drop');
+const input = document.getElementById('file-input');
+drop.addEventListener('click', () => input.click());
+input.addEventListener('change', e => { for (const f of e.target.files) ingest(f); input.value = ''; });
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('hover'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('hover'); }));
+drop.addEventListener('drop', e => { for (const f of e.dataTransfer.files) ingest(f); });
+</script>
+</body>
+</html>
