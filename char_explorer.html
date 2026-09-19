@@ -1941,6 +1941,36 @@ function descClause(item, key) {
     .replace(/^[:;,\s]+|[;,\s]+$/g, '').trim() : '';
 }
 
+// A third place an activation hides: prose only, with no <activation> field and no
+// Item Activities entry — "<b>Activate - Return Force </b>(force, manipulate)
+// <b>Trigger </b>… <b>Effect </b>…". Roughly twenty items across the sample party
+// are described this way and no other, so the description has to be read too.
+function descActivations(item) {
+  const d = findPath(item, 'description');
+  if (!d) return [];
+  const clause = (s, key) => {
+    const m = s.match(new RegExp(`<b>\\s*${key}\\s*</b>\\s*([^<]*)`, 'i'));
+    return m ? m[1].replace(/^[:;,\s]+|[;,\s]+$/g, '').trim() : '';
+  };
+  // Split on the label so an item with two activations yields two rows, and each
+  // chunk's Frequency/Effect can only be read from its own activation.
+  return d.innerHTML.replace(/\s+/g, ' ').split(/<b>\s*Activate\b/i).slice(1)
+    .map(c => {
+      const head = c.match(/^\s*(?:[-–—]\s*([^<]*?))?\s*<\/b>\s*([^<]*)/);
+      // The cost runs on into the rules text whenever the item skips the <b>Effect</b>
+      // label, so stop at the closing bracket of the trait list, or at the first
+      // sentence break when there isn't one.
+      const act = (head?.[2] || '').trim();
+      return {
+        name:       (head?.[1] || '').trim(),
+        activation: (act.match(/^[^.;]*?\)/)?.[0] ?? act.split(/[.;]/)[0]).trim(),
+        frequency:  clause(c, 'Frequency'),
+        effect:     clause(c, 'Effect'),
+      };
+    })
+    .filter(a => a.activation || a.effect);
+}
+
 function parseActivatableItems(char) {
   const byItem = {};
   for (const grp of children(char, 'activityset'))
@@ -1962,8 +1992,11 @@ function parseActivatableItems(char) {
     const name = txt(item, 'name');
     if (!name || isWandItem(item) || isConsumableItem(item)) continue;
     const ownRaw = txt(item, 'activation');
-    const powers = byItem[item.tagName] ||
-      (ownRaw ? [{ name: '', activation: ownRaw, frequency: txt(item, 'frequency'), effect: '' }] : []);
+    // Richest source wins: a linked Item Activity, then the row's own field, then
+    // whatever the description spells out.
+    const powers = byItem[item.tagName]
+      || (ownRaw ? [{ name: '', activation: ownRaw, frequency: txt(item, 'frequency'), effect: '' }]
+                 : descActivations(item));
     if (!powers.length) continue;
 
     for (const p of powers) {
