@@ -1105,6 +1105,11 @@ function parseBasic(char) {
     background:txt(char, 'background'),
     size:      txt(char, 'size'),
     speed:     speedNode ? num(speedNode, 'total') : 0,
+    // A climb or swim speed lives in its own free-text field, so it never reached
+    // the header even though it's the kind of thing you look up mid-turn.
+    speedSpecial: speedNode ? txt(speedNode, 'special') : '',
+    deity:     txt(char, 'deity'),
+    bio:       ['age', 'gender', 'height', 'weight'].map(k => txt(char, k)).filter(Boolean),
     traits:    txt(char, 'traits'),
     senses:    txt(char, 'senses'),
     heroPoints:num(char, 'hero'),
@@ -2062,7 +2067,6 @@ function consumableDuration(item) {
 
 function parseTemporaryEffects(char) {
   const consumables  = [];
-  const usedItemIds  = new Set();   // inventory rows now shown on the Buffs tab instead of Gear
   const wand_norms   = new Set();   // normalised lower-case spell names
   const wand_pending = [];          // [{norm, spellDisp, itemLevel, nameRank}]
 
@@ -2123,7 +2127,6 @@ function parseTemporaryEffects(char) {
     const effectsStr = effectParts.join(' | ');
     const isAmmo = isubtype.includes('ammunition') || itype.includes('ammunition');
     if (!isStatBuff(effectsStr) && (isAmmo || !consumableSummary(item))) continue;
-    usedItemIds.add(item.tagName);
     consumables.push({
       name:     count > 1 ? `${name} ×${count}` : name,
       level, subtype,
@@ -2184,9 +2187,6 @@ function parseTemporaryEffects(char) {
     if (wandSpellData[norm]) {
       const { effects, duration, ssRank } = wandSpellData[norm];
       const rank = nameRank || ssRank;
-      // A wand whose spell can't be found in the spellsets gets no row here, so it
-      // stays in Gear rather than disappearing from the sheet entirely.
-      usedItemIds.add(id);
       consumables.push({
         name:    spellDisp,
         level:   itemLevel,
@@ -2261,7 +2261,7 @@ function parseTemporaryEffects(char) {
     .filter(([, spells]) => spells.length)
     .sort((a, b) => a[0].localeCompare(b[0]));
 
-  return { consumables, buffSpells, usedItemIds };
+  return { consumables, buffSpells };
 }
 
 // ── Automation string parser ──────────────────────────────────────────────────
@@ -3321,7 +3321,7 @@ function render(char) {
   const coins    = parseCoins(char);
   const specAbs  = parseSpecialAbilities(char);
   const profs    = parseProficiencies(char);
-  const { consumables, buffSpells, usedItemIds } = parseTemporaryEffects(char);
+  const { consumables, buffSpells } = parseTemporaryEffects(char);
 
   const out = [];
 
@@ -3331,7 +3331,10 @@ function render(char) {
   if (basic.background) out.push(`**Background:** ${basic.background}`);
   if (basic.traits)     out.push(`**Traits:** ${basic.traits}`);
   out.push(`**Size:** ${basic.size} | **Speed:** ${basic.speed} ft` +
+           (basic.speedSpecial ? `, ${basic.speedSpecial}` : '') +
+           (basic.deity ? ` | **Deity:** ${basic.deity}` : '') +
            (basic.keyAbility ? ` | **Key Attribute:** ${titleCase(basic.keyAbility)}` : ''));
+  if (basic.bio.length) out.push(`*${basic.bio.join(' · ')}*`);
   if (basic.senses) out.push(`**Senses:** ${basic.senses}`);
   out.push(`**Hero Points:** ${'◆'.repeat(basic.heroPoints)}${'◇'.repeat(Math.max(0, 3 - basic.heroPoints))} (${basic.heroPoints})`);
   out.push('', '---', '');
@@ -3626,6 +3629,23 @@ function render(char) {
     out.push('---', '');
   }
 
+  // ── ancestry features ──────────────────────────────────────────────────────
+  // <traitlist> holds what the ancestry and heritage gave you — Low-Light Vision,
+  // Sharp Teeth, Land on Your Feet, the heritage's own feature. Only the heritage
+  // NAME reached the header; the features themselves appeared nowhere at all.
+  const ancestryTraits = children(char, 'traitlist')
+    .map(t => ({ name: txt(t, 'name'), level: num(t, 'level_applied') }))
+    .filter(t => t.name);
+  if (ancestryTraits.length) {
+    out.push('## Ancestry Features', '');
+    out.push(mdTable(
+      ['Level', 'Feature'],
+      ancestryTraits.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
+        .map(t => [String(t.level || '—'), t.name]),
+      ['r', 'l']
+    ), '', '---', '');
+  }
+
   // ── class features ─────────────────────────────────────────────────────────
   out.push('## Class Features', '');
   if (specAbs.length)
@@ -3660,13 +3680,8 @@ function render(char) {
   // location: free-text note set by the player, used to name the container an item lives in
   out.push('## Equipment', '');
 
-  // Consumables and wands are listed on the Buffs & Consumables tab with what they
-  // actually do, so they're dropped here rather than appearing twice. Only rows that
-  // really made it onto that tab are removed — a wand whose spell couldn't be
-  // resolved is still listed below, so nothing silently vanishes from the inventory.
-  const gearItems   = inventory.filter(i => !usedItemIds.has(i.id));
-  const worn        = gearItems.filter(i => i.carried_raw === '2');
-  const directCarry = gearItems.filter(i => i.carried_raw === '1' && !i.location);
+  const worn        = inventory.filter(i => i.carried_raw === '2');
+  const directCarry = inventory.filter(i => i.carried_raw === '1' && !i.location);
 
   // ── Invested item count ─────────────────────────────────────────────────────
   const hasIncredibleInvestiture = feats.some(f => f.name === 'Incredible Investiture');
@@ -3700,8 +3715,8 @@ function render(char) {
       ''
     );
   }
-  const inContainer = gearItems.filter(i => i.location && i.carried_raw !== '2');
-  const notCarried  = gearItems.filter(i => (i.carried_raw === '0' || i.carried_raw === '3') && !i.location);
+  const inContainer = inventory.filter(i => i.location && i.carried_raw !== '2');
+  const notCarried  = inventory.filter(i => (i.carried_raw === '0' || i.carried_raw === '3') && !i.location);
 
   // Container sub-groups, sorted case-insensitively
   const containerGroups = {};
@@ -4022,7 +4037,7 @@ const TAB_GROUPS = [
   ['Skills',           ['skills']],
   ['Activities',       ['activities']],
   ['Spells',           ['spell statistics', 'spells']],
-  ['Feats',            ['class features', 'feats']],
+  ['Feats',            ['ancestry features', 'class features', 'feats']],
   ['Gear',             ['currency', 'equipment']],
   ['Buffs & Consumables', ['buffs & consumables']],
   ['Data Health',      ['data health']],
@@ -4668,6 +4683,17 @@ function buildGlossary(char, skills = []) {
     add(name, { name, kind: 'Class feature', meta, body, automation: txt(sa, 'automation').trim(), editable: true });
   }
 
+  // ── Ancestry & heritage features ──
+  for (const t of children(char, 'traitlist')) {
+    const name = txt(t, 'name');
+    if (!name) continue;
+    const meta = [];
+    const lv = num(t, 'level_applied');
+    if (lv) meta.push(['Level', String(lv)]);
+    metaPush(meta, t, [['Source', 'source']]);
+    add(name, { name, kind: 'Ancestry feature', meta, body: fgFieldHtml(t, 'text'), automation: '' });
+  }
+
   // ── Activities (skill actions, exploration, encounter, downtime, feat, item) ──
   for (const grp of children(char, 'activityset')) {
     const sections = findPath(grp, 'sections');
@@ -4777,7 +4803,7 @@ function glossEntryHtml(e, withHint) {
 
 // Sections whose text should be scanned for entity names.
 const GLOSS_SECTIONS = new Set([
-  'spells', 'class features', 'feats', 'equipment', 'buffs & consumables', 'defenses',
+  'spells', 'ancestry features', 'class features', 'feats', 'equipment', 'buffs & consumables', 'defenses',
   'activities', 'skills', 'weapons',
 ]);
 
