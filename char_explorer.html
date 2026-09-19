@@ -566,6 +566,7 @@
     #auto-edit-dialog::backdrop { background: rgba(0,0,0,0.62); }
     #auto-edit-dialog h3 { color: #c9b8ff; font-size: 1.05rem; margin: 0 0 1rem; }
     .aed-label { font-size: 0.74rem; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem; }
+    .aed-hint { font-size: 0.8rem; color: #8a8a9a; line-height: 1.45; margin: -0.5rem 0 0.9rem; }
     #auto-edit-textarea {
       width: 100%; background: #12122a; color: #f0c080;
       border: 1px solid #555; border-radius: 6px;
@@ -894,6 +895,9 @@
 <!-- ══ Automation editor dialog ══════════════════════════════════════════════ -->
 <dialog id="auto-edit-dialog">
   <h3 id="auto-edit-title">Edit Automation</h3>
+  <p class="aed-hint">Most feats and spells need no automation — add an entry only for a
+    standing bonus Fantasy Grounds should apply on its own. Anything you activate by hand,
+    or that only changes how an action works, belongs in the text, not here.</p>
 
   <details id="aed-builder" open>
     <summary>Build entry</summary>
@@ -902,6 +906,7 @@
       <div class="ab-row">
         <label>Type</label>
         <select id="ab-kw">
+          <option value="">Choose an effect type…</option>
           <optgroup label="Stat bonuses (EFFECT)">
             <option value="EFF_SKILL">Skill bonus</option>
             <option value="EFF_SAVE">Saving throw bonus</option>
@@ -4461,8 +4466,11 @@ function buildGlossary(char, skills = []) {
     const act = txt(item, 'activation');
     if (act) body += `<p><b>Activate</b> — ${sanitizeHtml(act)}</p>`;   // FG stores light inline markup here
     body += fgFieldHtml(item, 'description');
+    // Only an inventory item can be worn or stowed, so only it defaults to the
+    // "equip" scope in the builder; feats, features and spells are always active.
     add(name, { name, kind: txt(item, 'subtype') || txt(item, 'type') || 'Item',
-                meta, body, automation: txt(item, 'automation').trim(), editable: true });
+                meta, body, automation: txt(item, 'automation').trim(),
+                editable: true, scope: 'equip' });
   }
 
   // Apply aliases last so they never shadow a real entry's primary key.
@@ -4517,7 +4525,7 @@ function glossEntryHtml(e, withHint) {
   else        h += '<div class="gp-body"><em>No description text in this export.</em></div>';
   if (e.spellActions) h += e.spellActions;
   if (e.automation) h += `<div class="gp-auto"><b>Automation:</b>${automationToHtml(e.automation)}</div>`;
-  if (e.editable) h += `<div class="gp-edit-row"><button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}">✏ Edit automation</button></div>`;
+  if (e.editable) h += `<div class="gp-edit-row"><button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}" data-edit-scope="${escHtml(e.scope || 'char')}">✏ Edit automation</button></div>`;
   if (withHint) h += '<div class="gp-hint">Click to open full entry.</div>';
   return h;
 }
@@ -4716,7 +4724,7 @@ function openGlossModal(key) {
   // Edit button (feats, class features, inventory items)
   if (e.editable) {
     editArea.innerHTML = sanitizeHtml(
-      `<button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}">✏ Edit automation</button>`
+      `<button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}" data-edit-scope="${escHtml(e.scope || 'char')}">✏ Edit automation</button>`
     );
   } else {
     editArea.innerHTML = '';
@@ -4755,7 +4763,7 @@ function openGlossModal(key) {
     const editBtn = e.target.closest('.gp-edit-btn');
     if (editBtn) {
       glossPopup.style.display = 'none';
-      openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto);
+      openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto, editBtn.dataset.editScope);
       return;
     }
     const a = e.target.closest('.gloss');
@@ -4773,7 +4781,7 @@ glossModal.addEventListener('click', e => {
   const editBtn = e.target.closest('.gp-edit-btn');
   if (editBtn) {
     glossModal.close();
-    openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto);
+    openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto, editBtn.dataset.editScope);
     return;
   }
   // Internal cross-reference: navigate the modal to that entry in place.
@@ -5147,9 +5155,16 @@ function rerender() {
 const autoEditDialog = document.getElementById('auto-edit-dialog');
 let autoEditName = '';
 
-function openAutoEditDialog(name, currentAuto) {
+function openAutoEditDialog(name, currentAuto, scope) {
   autoEditName = name;
   document.getElementById('auto-edit-title').textContent = `Edit Automation — ${name}`;
+  // Reset the builder for each entry: no effect type pre-selected, so it offers
+  // nothing until asked, and a default scope that suits what's being edited.
+  const kwSel = abEl('ab-kw');
+  if (kwSel) { kwSel.value = ''; }
+  const scopeSel = abEl('ab-scope');
+  if (scopeSel) scopeSel.value = scope || 'char';
+  abUpdateFields();
   const ta = document.getElementById('auto-edit-textarea');
   ta.value = currentAuto || '';
   updateAutoEditPreview(currentAuto || '');
