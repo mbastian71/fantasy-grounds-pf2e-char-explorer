@@ -566,6 +566,7 @@
     #auto-edit-dialog::backdrop { background: rgba(0,0,0,0.62); }
     #auto-edit-dialog h3 { color: #c9b8ff; font-size: 1.05rem; margin: 0 0 1rem; }
     .aed-label { font-size: 0.74rem; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem; }
+    .aed-hint { font-size: 0.8rem; color: #8a8a9a; line-height: 1.45; margin: -0.5rem 0 0.9rem; }
     #auto-edit-textarea {
       width: 100%; background: #12122a; color: #f0c080;
       border: 1px solid #555; border-radius: 6px;
@@ -894,6 +895,9 @@
 <!-- ══ Automation editor dialog ══════════════════════════════════════════════ -->
 <dialog id="auto-edit-dialog">
   <h3 id="auto-edit-title">Edit Automation</h3>
+  <p class="aed-hint">Most feats and spells need no automation — add an entry only for a
+    standing bonus Fantasy Grounds should apply on its own. Anything you activate by hand,
+    or that only changes how an action works, belongs in the text, not here.</p>
 
   <details id="aed-builder" open>
     <summary>Build entry</summary>
@@ -902,6 +906,7 @@
       <div class="ab-row">
         <label>Type</label>
         <select id="ab-kw">
+          <option value="">Choose an effect type…</option>
           <optgroup label="Stat bonuses (EFFECT)">
             <option value="EFF_SKILL">Skill bonus</option>
             <option value="EFF_SAVE">Saving throw bonus</option>
@@ -1533,8 +1538,23 @@ function dedupeSignatureClones(ss) {
   return ss;
 }
 
+// FG keeps the action cost as a keyword on each activity.
+const ACTIVITY_COST = {
+  action:'1 action', '2actions':'2 actions', '3actions':'3 actions',
+  reaction:'reaction', freeaction:'free action',
+  downtime:'downtime', exploration:'exploration', other:'',
+};
+
+// Traits arrive in whatever case the source used ("CONCENTRATE, SORCERER" from a
+// feat, "Auditory, Concentrate" from a skill action), so normalise for display.
+function prettyTraits(s) {
+  return String(s || '').split(',').map(t => t.trim()).filter(Boolean)
+    .map(t => t.split(/\s+/).map(w => titleCase(w.toLowerCase())).join(' '))
+    .join(', ');
+}
+
 function parseActivities(char) {
-  const grouped = {};   // category -> { sectionLabel -> [names] }
+  const grouped = {};   // category -> { sectionLabel -> [activity] }
   for (const grp of children(char, 'activityset')) {
     const sections = findPath(grp, 'sections');
     if (!sections) continue;
@@ -1548,14 +1568,28 @@ function parseActivities(char) {
         const section  = txt(a, 'category_section')
           .replace(/\s*-\s*(Trained|Expert|Master|Legendary)\s*$/, '');
         const key = (category === 'Skill Activities' && section) ? section : '';
-        (grouped[category] ??= {})[key] ??= [];
-        grouped[category][key].push(name);
+        // An activity's mechanics live in <actions>: the roll it makes and the
+        // effects it applies per success tier. An empty one does nothing when clicked.
+        const acted = children(a, 'actions');
+        ((grouped[category] ??= {})[key] ??= []).push({
+          name, category,
+          cost:      ACTIVITY_COST[txt(a, 'activity')] || '',
+          traits:    txt(a, 'traits'),
+          frequency: txt(a, 'frequency'),
+          trigger:   txt(a, 'trigger'),
+          nActions:  acted.length,
+          text:      [fgFieldText(a, 'effectsbenefits'), fgFieldText(a, 'success'),
+                      fgFieldText(a, 'critsuccess')].filter(Boolean).join(' '),
+        });
       }
     }
   }
   for (const cat of Object.values(grouped))
-    for (const k of Object.keys(cat))
-      cat[k] = [...new Set(cat[k])].sort();
+    for (const [k, list] of Object.entries(cat)) {
+      const seen = new Set();
+      cat[k] = list.filter(a => !seen.has(a.name) && seen.add(a.name))
+                   .sort((x, y) => x.name.localeCompare(y.name));
+    }
   return grouped;
 }
 
@@ -2408,6 +2442,69 @@ function checkMissingAutomation(inventory) {
   });
 }
 
+// ── Activities with nothing attached ─────────────────────────────────────────
+// An activity's mechanics live in its <actions> node: the roll it makes and the
+// effects it applies per success tier. Fantasy Grounds' library ships the generic
+// actions already wired — Demoralize rolls Intimidation vs Will and applies
+// Frightened — but an activity created from a feat, class feature or item usually
+// arrives bare, so clicking it rolls nothing and applies nothing. Only those three
+// categories are checked; the basic encounter and exploration actions are mostly
+// narrative and would drown the report.
+const AUTOMATABLE_ACT_CATEGORIES = ['Feat Activities', 'Class Activities', 'Item Activities'];
+const ACT_CONDITION_RE = /\b(frightened|clumsy|stupefied|drained|enfeebled|sickened|slowed|quickened|prone|grabbed|restrained|off-guard|flat-footed|dazzled|blinded|deafened|fleeing|paralyzed|stunned|unconscious|persistent damage|temporary hit points)\b/i;
+const ACT_BONUS_RE = /[+-]\d+\s+(?:\w+\s+)?(?:status|circumstance|item)\s+(?:bonus|penalty)/i;
+
+function checkActivityAutomation(activities) {
+  const issues = [];
+  for (const cat of AUTOMATABLE_ACT_CATEGORIES) {
+    const list = Object.values(activities[cat] || {}).flat().filter(a => !a.nActions);
+    const kind = cat.replace(/\s*Activities$/, '').toLowerCase();
+    for (const a of list) {
+      const hit = a.text.match(ACT_CONDITION_RE)?.[1] || (ACT_BONUS_RE.test(a.text) ? 'a bonus or penalty' : null);
+      issues.push(
+        `  💡 **${a.name}** (${kind} activity) has no actions attached — clicking it in Fantasy Grounds ` +
+        `makes no roll and applies no effect.` +
+        (hit ? ` Its text mentions ${hit === 'a bonus or penalty' ? hit : `"${hit}"`}, so it probably wants one.` : '')
+      );
+    }
+  }
+  return issues;
+}
+
+// ── Perception effects keyed as SKILL ────────────────────────────────────────
+// A Perception roll reads PERC-tagged effects, never SKILL ones — see
+// manager_action_skill.lua, which resolves bonuses with
+// getBonusData(rSource, bIsPerception and "PERC" or "SKILL"). So a clause like
+// "SKILL: -2 perception, status" is silently inert: the effect shows on the sheet
+// and never reaches the roll. The working form drops the skill name: "PERC: -2 status".
+function checkPerceptionEffectKey(char) {
+  const issues = [], seen = new Set();
+  for (const el of char.querySelectorAll('label, automation')) {
+    const raw = (el.textContent || '').trim();
+    if (!raw.includes('SKILL:')) continue;
+    for (const m of raw.matchAll(/SKILL:\s*([^;|\]]+)/g)) {
+      const clause = m[0].trim();
+      if (!/\bperception\b/i.test(clause)) continue;
+      // Name the entry the effect hangs off: the nearest ancestor carrying a <name>.
+      let owner = '';
+      for (let n = el.parentElement; n && !owner; n = n.parentElement) {
+        const nm = n.querySelector(':scope > name');
+        if (nm) owner = (nm.textContent || '').trim();
+      }
+      const fixed = 'PERC: ' + m[1].replace(/,?\s*\bperception\b\s*,?/i, ' ')
+        .replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').replace(/^\s*,|,\s*$/g, '').trim();
+      const key = owner + '|' + clause;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      issues.push(
+        `  ⚠ **${owner || 'An effect'}**: \`${clause}\` never reaches a Perception check — ` +
+        `Perception reads PERC-tagged effects, not SKILL ones, so this is inert. Use \`${fixed}\`.`
+      );
+    }
+  }
+  return issues;
+}
+
 // ── Apex items (ability boost) ────────────────────────────────────────────────
 // An invested apex item raises one ability modifier by 1, or to +4 if that's
 // higher. The PFRPG2 ruleset has no ability-score automation — its [ABILITY …]
@@ -2922,6 +3019,8 @@ function runConsistencyChecks(char, skills, effects, abilities, inventory, spell
     ['Armor check penalty',                                            checkArmorCheckPenalty(char, skills)],
     ['Missing FG automation (passive bonuses not tracked as effects)', checkMissingAutomation(inventory)],
     ['Apex item ability boost (no FG automation — manual entry only)',  checkApexAbility(abilities, inventory)],
+    ['Activities with no actions attached',                             checkActivityAutomation(parseActivities(char))],
+    ['Perception effects keyed as SKILL (inert)',                       checkPerceptionEffectKey(char)],
     ['Signature spells (spontaneous casters)',                         checkSignatureSpells(char, spellsets)],
     ['Spells known per rank (spontaneous repertoires)',                checkRepertoireSize(spellsets)],
     ['Spell DC key attribute (per class/archetype)',                   checkSpellDcAttribute(char, abilities)],
@@ -3177,25 +3276,53 @@ function render(char) {
 
   // ── activities ───────────────────────────────────────────────────────────────
   const activities = parseActivities(char);
-  const ACT_CATEGORY_ORDER = [
-    // 'Skill Activities' omitted — covered by the per-skill hover popup in the Skills table.
+  // What this character can do that another can't, and where the action cost is the
+  // point — so these get a table, and they lead. The Feats list names them but says
+  // nothing about cost, frequency or the fact that they're activated at all.
+  const ACT_TABLE_GROUPS = [
+    ['Feat Activities',  'From feats'],
+    ['Class Activities', 'From class features'],
+    ['Item Activities',  'From items'],
+  ];
+  // Identical on every sheet; listed by name only. Skill actions are also reachable
+  // from each skill's hover popup, but that hides them from anyone reading the page.
+  const ACT_NAME_GROUPS = [
+    ['Skill Activities',       'Skill actions'],
     ['Exploration Activities', 'Exploration'],
     ['Encounter Activities',   'Encounter'],
     ['Downtime Activities',    'Downtime'],
-    // 'Feat Activities' omitted — redundant with the Feats section.
   ];
   if (Object.keys(activities).length) {
     out.push('## Activities', '');
-    for (const [catKey, catLabel] of ACT_CATEGORY_ORDER) {
+    for (const [catKey, catLabel] of ACT_TABLE_GROUPS) {
+      const list = Object.values(activities[catKey] || {}).flat();
+      if (!list.length) continue;
+      const hasFreq = list.some(a => a.frequency);
+      const cols    = ['Activity', 'Action', ...(hasFreq ? ['Frequency'] : []), 'Traits'];
+      out.push(`### ${catLabel}`, '');
+      out.push(mdTable(cols, list.map(a => [
+        a.name,
+        a.cost || '—',
+        ...(hasFreq ? [a.frequency || '—'] : []),
+        prettyTraits(a.traits) || '—',
+      ])));
+      out.push('');
+    }
+    // Anything FG adds that isn't named above still gets shown rather than dropped.
+    const listed = new Set([...ACT_TABLE_GROUPS, ...ACT_NAME_GROUPS].map(g => g[0]));
+    const nameGroups = [...ACT_NAME_GROUPS,
+      ...Object.keys(activities).filter(k => !listed.has(k)).sort().map(k => [k, k])];
+    for (const [catKey, catLabel] of nameGroups) {
       const bucket = activities[catKey];
       if (!bucket) continue;
       out.push(`### ${catLabel}`, '');
+      const names = list => list.map(a => a.name).join(', ');
       const sections = Object.keys(bucket).filter(Boolean).sort();
       if (sections.length) {
-        for (const sec of sections) out.push(`**${sec}:** ${bucket[sec].join(', ')}`, '');
-        if (bucket['']) out.push(`**Other:** ${bucket[''].join(', ')}`, '');
+        for (const sec of sections) out.push(`**${sec}:** ${names(bucket[sec])}`, '');
+        if (bucket['']) out.push(`**Other:** ${names(bucket[''])}`, '');
       } else {
-        out.push((bucket[''] || []).join(', '), '');
+        out.push(names(bucket[''] || []), '');
       }
     }
     out.push('---', '');
@@ -3647,7 +3774,8 @@ function toggleAllSections() {
 const TAB_GROUPS = [
   ['General',          ['ability scores', 'proficiencies', 'languages', 'notes']],
   ['Combat',           ['defenses', 'weapons']],
-  ['Skills & Actions', ['skills', 'activities']],
+  ['Skills',           ['skills']],
+  ['Activities',       ['activities']],
   ['Spells',           ['spell statistics', 'spells']],
   ['Feats',            ['class features', 'feats']],
   ['Gear',             ['currency', 'equipment']],
@@ -3811,6 +3939,7 @@ function makeSearchBars() {
     const isFeats  = titles.some(t => t.includes('feat') || t.includes('class feature'));
     const isGear   = titles.some(t => t.includes('equipment') || t.includes('currency'));
     const isSkills = titles.some(t => t === 'skills');
+    const isActs   = titles.some(t => t === 'activities');
 
     const bar = document.createElement('div');
     bar.className = 'tab-search-bar';
@@ -3818,7 +3947,8 @@ function makeSearchBars() {
     // Text input (always)
     const textIn = mkInput(
       isSpells ? 'Search name or effect… (e.g. "frightened")' : isFeats ? 'Filter feats…' :
-      isGear   ? 'Filter items…'  : isSkills ? 'Filter skills…' : 'Filter…'
+      isGear   ? 'Filter items…'  : isSkills ? 'Filter skills…' :
+      isActs   ? 'Filter activities…' : 'Filter…'
     );
     if (isSpells) textIn.style.width = '15rem';
     if (tabFilters[idx].text) textIn.value = tabFilters[idx].text;
@@ -4293,12 +4423,7 @@ function buildGlossary(char, skills = []) {
     add(name, { name, kind: 'Class feature', meta, body, automation: txt(sa, 'automation').trim(), editable: true });
   }
 
-  // ── Activities (skill actions, exploration, encounter, downtime, feat) ──
-  const ACTIVITY_COST = {
-    action:'1 action', '2actions':'2 actions', '3actions':'3 actions',
-    reaction:'reaction', freeaction:'free action',
-    downtime:'downtime', exploration:'exploration', other:'',
-  };
+  // ── Activities (skill actions, exploration, encounter, downtime, feat, item) ──
   for (const grp of children(char, 'activityset')) {
     const sections = findPath(grp, 'sections');
     if (!sections) continue;
@@ -4341,8 +4466,11 @@ function buildGlossary(char, skills = []) {
     const act = txt(item, 'activation');
     if (act) body += `<p><b>Activate</b> — ${sanitizeHtml(act)}</p>`;   // FG stores light inline markup here
     body += fgFieldHtml(item, 'description');
+    // Only an inventory item can be worn or stowed, so only it defaults to the
+    // "equip" scope in the builder; feats, features and spells are always active.
     add(name, { name, kind: txt(item, 'subtype') || txt(item, 'type') || 'Item',
-                meta, body, automation: txt(item, 'automation').trim(), editable: true });
+                meta, body, automation: txt(item, 'automation').trim(),
+                editable: true, scope: 'equip' });
   }
 
   // Apply aliases last so they never shadow a real entry's primary key.
@@ -4397,7 +4525,7 @@ function glossEntryHtml(e, withHint) {
   else        h += '<div class="gp-body"><em>No description text in this export.</em></div>';
   if (e.spellActions) h += e.spellActions;
   if (e.automation) h += `<div class="gp-auto"><b>Automation:</b>${automationToHtml(e.automation)}</div>`;
-  if (e.editable) h += `<div class="gp-edit-row"><button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}">✏ Edit automation</button></div>`;
+  if (e.editable) h += `<div class="gp-edit-row"><button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}" data-edit-scope="${escHtml(e.scope || 'char')}">✏ Edit automation</button></div>`;
   if (withHint) h += '<div class="gp-hint">Click to open full entry.</div>';
   return h;
 }
@@ -4596,7 +4724,7 @@ function openGlossModal(key) {
   // Edit button (feats, class features, inventory items)
   if (e.editable) {
     editArea.innerHTML = sanitizeHtml(
-      `<button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}">✏ Edit automation</button>`
+      `<button class="gp-edit-btn" data-edit-name="${escHtml(e.name)}" data-edit-auto="${escHtml(e.automation || '')}" data-edit-scope="${escHtml(e.scope || 'char')}">✏ Edit automation</button>`
     );
   } else {
     editArea.innerHTML = '';
@@ -4635,7 +4763,7 @@ function openGlossModal(key) {
     const editBtn = e.target.closest('.gp-edit-btn');
     if (editBtn) {
       glossPopup.style.display = 'none';
-      openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto);
+      openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto, editBtn.dataset.editScope);
       return;
     }
     const a = e.target.closest('.gloss');
@@ -4653,7 +4781,7 @@ glossModal.addEventListener('click', e => {
   const editBtn = e.target.closest('.gp-edit-btn');
   if (editBtn) {
     glossModal.close();
-    openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto);
+    openAutoEditDialog(editBtn.dataset.editName, editBtn.dataset.editAuto, editBtn.dataset.editScope);
     return;
   }
   // Internal cross-reference: navigate the modal to that entry in place.
@@ -5027,9 +5155,16 @@ function rerender() {
 const autoEditDialog = document.getElementById('auto-edit-dialog');
 let autoEditName = '';
 
-function openAutoEditDialog(name, currentAuto) {
+function openAutoEditDialog(name, currentAuto, scope) {
   autoEditName = name;
   document.getElementById('auto-edit-title').textContent = `Edit Automation — ${name}`;
+  // Reset the builder for each entry: no effect type pre-selected, so it offers
+  // nothing until asked, and a default scope that suits what's being edited.
+  const kwSel = abEl('ab-kw');
+  if (kwSel) { kwSel.value = ''; }
+  const scopeSel = abEl('ab-scope');
+  if (scopeSel) scopeSel.value = scope || 'char';
+  abUpdateFields();
   const ta = document.getElementById('auto-edit-textarea');
   ta.value = currentAuto || '';
   updateAutoEditPreview(currentAuto || '');
