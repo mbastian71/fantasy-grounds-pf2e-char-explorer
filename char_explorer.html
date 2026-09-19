@@ -3693,7 +3693,8 @@ function toggleAllSections() {
 const TAB_GROUPS = [
   ['General',          ['ability scores', 'proficiencies', 'languages', 'notes']],
   ['Combat',           ['defenses', 'weapons']],
-  ['Skills & Actions', ['skills', 'activities']],
+  ['Skills',           ['skills']],
+  ['Activities',       ['activities']],
   ['Spells',           ['spell statistics', 'spells']],
   ['Feats',            ['class features', 'feats']],
   ['Gear',             ['currency', 'equipment']],
@@ -3857,6 +3858,7 @@ function makeSearchBars() {
     const isFeats  = titles.some(t => t.includes('feat') || t.includes('class feature'));
     const isGear   = titles.some(t => t.includes('equipment') || t.includes('currency'));
     const isSkills = titles.some(t => t === 'skills');
+    const isActs   = titles.some(t => t === 'activities');
 
     const bar = document.createElement('div');
     bar.className = 'tab-search-bar';
@@ -3864,7 +3866,8 @@ function makeSearchBars() {
     // Text input (always)
     const textIn = mkInput(
       isSpells ? 'Search name or effect… (e.g. "frightened")' : isFeats ? 'Filter feats…' :
-      isGear   ? 'Filter items…'  : isSkills ? 'Filter skills…' : 'Filter…'
+      isGear   ? 'Filter items…'  : isSkills ? 'Filter skills…' :
+      isActs   ? 'Filter activities…' : 'Filter…'
     );
     if (isSpells) textIn.style.width = '15rem';
     if (tabFilters[idx].text) textIn.value = tabFilters[idx].text;
