@@ -1828,7 +1828,12 @@ function cleanEffectLabel(label, spellName) {
   return label;
 }
 
-const WAND_NAME_RE = /^Magic Wand\s*[-–]\s*(?:(\d+)(?:st|nd|rd|th)-rank\s+)?(.+)/i;
+// Wands get named every which way: "Magic Wand - False Vitality",
+// "Magic Wand - 2nd-rank Tailwind", "Wand of Smoldering Fireballs, Level 5",
+// "6th-Level Wand of Vital Beacon". Rank may lead the name or sit before the spell.
+const WAND_NAME_RE = /^(?:(\d+)(?:st|nd|rd|th)-level\s+)?(?:magic\s+)?wand\s*(?:[-–]\s*|\s+of\s+)(?:(\d+)(?:st|nd|rd|th)-(?:rank|level)\s+)?(.+)$/i;
+// Trailing bookkeeping the spell name never has: ", Level 5", "8h".
+const WAND_SPELL_TRAIL_RE = /\s*(?:,\s*level\s+\d+|\s+\d+\s*h)\s*$/i;
 
 // Returns true if a spell <action> item benefits the caster or willing allies —
 // i.e. should appear in Useful Effects.
@@ -2033,8 +2038,31 @@ function parseActivatableItems(char) {
   return rows;
 }
 
+// A consumable's benefit is usually one sentence of flavour text away: "Upon
+// drinking it, you gain the effects of a 2nd-rank invisibility spell." Prefer a
+// labelled Effect clause, then the first sentence that actually promises the
+// reader something, then simply the first sentence.
+const CONSUMABLE_BENEFIT_RE =
+  /\b(?:you (?:gain|ignore|become|are|can|regain|get)|upon drinking|after you drink|when you activate|this scroll)\b/i;
+
+function consumableSummary(item) {
+  const clause = descClause(item, 'Effect');
+  if (clause) return clause.length > 150 ? clause.slice(0, 147).trimEnd() + '…' : clause;
+  const sentences = descText(item).split(/(?<=[.!?])\s+/).filter(Boolean);
+  const pick = sentences.find(s => CONSUMABLE_BENEFIT_RE.test(s)) || sentences[0] || '';
+  return pick.length > 150 ? pick.slice(0, 147).trimEnd() + '…' : pick;
+}
+
+function consumableDuration(item) {
+  const t = descText(item);
+  return (t.match(/\bduration is ([^.]+)/i)?.[1]
+       ?? t.match(/\bfor (\d+\s+(?:round|minute|hour|day)s?)\b/i)?.[1]
+       ?? '').trim();
+}
+
 function parseTemporaryEffects(char) {
   const consumables  = [];
+  const usedItemIds  = new Set();   // inventory rows now shown on the Buffs tab instead of Gear
   const wand_norms   = new Set();   // normalised lower-case spell names
   const wand_pending = [];          // [{norm, spellDisp, itemLevel, nameRank}]
 
@@ -2050,11 +2078,11 @@ function parseTemporaryEffects(char) {
     if (itype.includes('wand') || isubtype.includes('wand')) {
       const m = WAND_NAME_RE.exec(iname);
       if (m) {
-        const nameRank  = m[1] ? parseInt(m[1], 10) : 0;
-        const spellDisp = m[2].trim();
+        const nameRank  = parseInt(m[1] || m[2], 10) || 0;
+        const spellDisp = m[3].replace(WAND_SPELL_TRAIL_RE, '').trim();
         const norm = spellDisp.replace(/^\([A-Z]\)\s*/, '').replace(/\*+$/, '').trim().toLowerCase();
         wand_norms.add(norm);
-        wand_pending.push({ norm, spellDisp, itemLevel: num(item, 'level'), nameRank });
+        wand_pending.push({ norm, spellDisp, itemLevel: num(item, 'level'), nameRank, id: item.tagName });
       }
       continue;
     }
@@ -2088,13 +2116,19 @@ function parseTemporaryEffects(char) {
         }
       }
     }
+    // Most consumables carry no <actions> at all — a potion's whole rules text is
+    // prose — so falling back to the description is the difference between listing
+    // three of Tajam's and listing thirteen. Ammunition is the one consumable
+    // subtype that isn't a buff, and stays out.
     const effectsStr = effectParts.join(' | ');
-    if (!isStatBuff(effectsStr)) continue;
+    const isAmmo = isubtype.includes('ammunition') || itype.includes('ammunition');
+    if (!isStatBuff(effectsStr) && (isAmmo || !consumableSummary(item))) continue;
+    usedItemIds.add(item.tagName);
     consumables.push({
       name:     count > 1 ? `${name} ×${count}` : name,
       level, subtype,
-      effects:  effectsStr,
-      duration: duration || '—',
+      effects:  isStatBuff(effectsStr) ? effectsStr : consumableSummary(item),
+      duration: duration || consumableDuration(item) || '—',
     });
   }
 
@@ -2146,10 +2180,13 @@ function parseTemporaryEffects(char) {
   // Add wand items that have a buff effect. The Item column shows the
   // spell name; rank + "wand" in the Type column identify the item
   // (full item name still appears in the Inventory section).
-  for (const { norm, spellDisp, itemLevel, nameRank } of wand_pending) {
+  for (const { norm, spellDisp, itemLevel, nameRank, id } of wand_pending) {
     if (wandSpellData[norm]) {
       const { effects, duration, ssRank } = wandSpellData[norm];
       const rank = nameRank || ssRank;
+      // A wand whose spell can't be found in the spellsets gets no row here, so it
+      // stays in Gear rather than disappearing from the sheet entirely.
+      usedItemIds.add(id);
       consumables.push({
         name:    spellDisp,
         level:   itemLevel,
@@ -2224,7 +2261,7 @@ function parseTemporaryEffects(char) {
     .filter(([, spells]) => spells.length)
     .sort((a, b) => a[0].localeCompare(b[0]));
 
-  return { consumables, buffSpells };
+  return { consumables, buffSpells, usedItemIds };
 }
 
 // ── Automation string parser ──────────────────────────────────────────────────
@@ -3284,7 +3321,7 @@ function render(char) {
   const coins    = parseCoins(char);
   const specAbs  = parseSpecialAbilities(char);
   const profs    = parseProficiencies(char);
-  const { consumables, buffSpells } = parseTemporaryEffects(char);
+  const { consumables, buffSpells, usedItemIds } = parseTemporaryEffects(char);
 
   const out = [];
 
@@ -3623,8 +3660,13 @@ function render(char) {
   // location: free-text note set by the player, used to name the container an item lives in
   out.push('## Equipment', '');
 
-  const worn        = inventory.filter(i => i.carried_raw === '2');
-  const directCarry = inventory.filter(i => i.carried_raw === '1' && !i.location);
+  // Consumables and wands are listed on the Buffs & Consumables tab with what they
+  // actually do, so they're dropped here rather than appearing twice. Only rows that
+  // really made it onto that tab are removed — a wand whose spell couldn't be
+  // resolved is still listed below, so nothing silently vanishes from the inventory.
+  const gearItems   = inventory.filter(i => !usedItemIds.has(i.id));
+  const worn        = gearItems.filter(i => i.carried_raw === '2');
+  const directCarry = gearItems.filter(i => i.carried_raw === '1' && !i.location);
 
   // ── Invested item count ─────────────────────────────────────────────────────
   const hasIncredibleInvestiture = feats.some(f => f.name === 'Incredible Investiture');
@@ -3658,8 +3700,8 @@ function render(char) {
       ''
     );
   }
-  const inContainer = inventory.filter(i => i.location && i.carried_raw !== '2');
-  const notCarried  = inventory.filter(i => (i.carried_raw === '0' || i.carried_raw === '3') && !i.location);
+  const inContainer = gearItems.filter(i => i.location && i.carried_raw !== '2');
+  const notCarried  = gearItems.filter(i => (i.carried_raw === '0' || i.carried_raw === '3') && !i.location);
 
   // Container sub-groups, sorted case-insensitively
   const containerGroups = {};
