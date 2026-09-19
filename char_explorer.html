@@ -1563,12 +1563,18 @@ function parseActivities(char) {
         const section  = txt(a, 'category_section')
           .replace(/\s*-\s*(Trained|Expert|Master|Legendary)\s*$/, '');
         const key = (category === 'Skill Activities' && section) ? section : '';
+        // An activity's mechanics live in <actions>: the roll it makes and the
+        // effects it applies per success tier. An empty one does nothing when clicked.
+        const acted = children(a, 'actions');
         ((grouped[category] ??= {})[key] ??= []).push({
-          name,
+          name, category,
           cost:      ACTIVITY_COST[txt(a, 'activity')] || '',
           traits:    txt(a, 'traits'),
           frequency: txt(a, 'frequency'),
           trigger:   txt(a, 'trigger'),
+          nActions:  acted.length,
+          text:      [fgFieldText(a, 'effectsbenefits'), fgFieldText(a, 'success'),
+                      fgFieldText(a, 'critsuccess')].filter(Boolean).join(' '),
         });
       }
     }
@@ -2431,6 +2437,69 @@ function checkMissingAutomation(inventory) {
   });
 }
 
+// ── Activities with nothing attached ─────────────────────────────────────────
+// An activity's mechanics live in its <actions> node: the roll it makes and the
+// effects it applies per success tier. Fantasy Grounds' library ships the generic
+// actions already wired — Demoralize rolls Intimidation vs Will and applies
+// Frightened — but an activity created from a feat, class feature or item usually
+// arrives bare, so clicking it rolls nothing and applies nothing. Only those three
+// categories are checked; the basic encounter and exploration actions are mostly
+// narrative and would drown the report.
+const AUTOMATABLE_ACT_CATEGORIES = ['Feat Activities', 'Class Activities', 'Item Activities'];
+const ACT_CONDITION_RE = /\b(frightened|clumsy|stupefied|drained|enfeebled|sickened|slowed|quickened|prone|grabbed|restrained|off-guard|flat-footed|dazzled|blinded|deafened|fleeing|paralyzed|stunned|unconscious|persistent damage|temporary hit points)\b/i;
+const ACT_BONUS_RE = /[+-]\d+\s+(?:\w+\s+)?(?:status|circumstance|item)\s+(?:bonus|penalty)/i;
+
+function checkActivityAutomation(activities) {
+  const issues = [];
+  for (const cat of AUTOMATABLE_ACT_CATEGORIES) {
+    const list = Object.values(activities[cat] || {}).flat().filter(a => !a.nActions);
+    const kind = cat.replace(/\s*Activities$/, '').toLowerCase();
+    for (const a of list) {
+      const hit = a.text.match(ACT_CONDITION_RE)?.[1] || (ACT_BONUS_RE.test(a.text) ? 'a bonus or penalty' : null);
+      issues.push(
+        `  💡 **${a.name}** (${kind} activity) has no actions attached — clicking it in Fantasy Grounds ` +
+        `makes no roll and applies no effect.` +
+        (hit ? ` Its text mentions ${hit === 'a bonus or penalty' ? hit : `"${hit}"`}, so it probably wants one.` : '')
+      );
+    }
+  }
+  return issues;
+}
+
+// ── Perception effects keyed as SKILL ────────────────────────────────────────
+// A Perception roll reads PERC-tagged effects, never SKILL ones — see
+// manager_action_skill.lua, which resolves bonuses with
+// getBonusData(rSource, bIsPerception and "PERC" or "SKILL"). So a clause like
+// "SKILL: -2 perception, status" is silently inert: the effect shows on the sheet
+// and never reaches the roll. The working form drops the skill name: "PERC: -2 status".
+function checkPerceptionEffectKey(char) {
+  const issues = [], seen = new Set();
+  for (const el of char.querySelectorAll('label, automation')) {
+    const raw = (el.textContent || '').trim();
+    if (!raw.includes('SKILL:')) continue;
+    for (const m of raw.matchAll(/SKILL:\s*([^;|\]]+)/g)) {
+      const clause = m[0].trim();
+      if (!/\bperception\b/i.test(clause)) continue;
+      // Name the entry the effect hangs off: the nearest ancestor carrying a <name>.
+      let owner = '';
+      for (let n = el.parentElement; n && !owner; n = n.parentElement) {
+        const nm = n.querySelector(':scope > name');
+        if (nm) owner = (nm.textContent || '').trim();
+      }
+      const fixed = 'PERC: ' + m[1].replace(/,?\s*\bperception\b\s*,?/i, ' ')
+        .replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').replace(/^\s*,|,\s*$/g, '').trim();
+      const key = owner + '|' + clause;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      issues.push(
+        `  ⚠ **${owner || 'An effect'}**: \`${clause}\` never reaches a Perception check — ` +
+        `Perception reads PERC-tagged effects, not SKILL ones, so this is inert. Use \`${fixed}\`.`
+      );
+    }
+  }
+  return issues;
+}
+
 // ── Apex items (ability boost) ────────────────────────────────────────────────
 // An invested apex item raises one ability modifier by 1, or to +4 if that's
 // higher. The PFRPG2 ruleset has no ability-score automation — its [ABILITY …]
@@ -2945,6 +3014,8 @@ function runConsistencyChecks(char, skills, effects, abilities, inventory, spell
     ['Armor check penalty',                                            checkArmorCheckPenalty(char, skills)],
     ['Missing FG automation (passive bonuses not tracked as effects)', checkMissingAutomation(inventory)],
     ['Apex item ability boost (no FG automation — manual entry only)',  checkApexAbility(abilities, inventory)],
+    ['Activities with no actions attached',                             checkActivityAutomation(parseActivities(char))],
+    ['Perception effects keyed as SKILL (inert)',                       checkPerceptionEffectKey(char)],
     ['Signature spells (spontaneous casters)',                         checkSignatureSpells(char, spellsets)],
     ['Spells known per rank (spontaneous repertoires)',                checkRepertoireSize(spellsets)],
     ['Spell DC key attribute (per class/archetype)',                   checkSpellDcAttribute(char, abilities)],
@@ -3204,8 +3275,9 @@ function render(char) {
   // point — so these get a table, and they lead. The Feats list names them but says
   // nothing about cost, frequency or the fact that they're activated at all.
   const ACT_TABLE_GROUPS = [
-    ['Feat Activities', 'From feats'],
-    ['Item Activities', 'From items'],
+    ['Feat Activities',  'From feats'],
+    ['Class Activities', 'From class features'],
+    ['Item Activities',  'From items'],
   ];
   // Identical on every sheet; listed by name only. Skill actions are also reachable
   // from each skill's hover popup, but that hides them from anyone reading the page.
@@ -3231,7 +3303,11 @@ function render(char) {
       ])));
       out.push('');
     }
-    for (const [catKey, catLabel] of ACT_NAME_GROUPS) {
+    // Anything FG adds that isn't named above still gets shown rather than dropped.
+    const listed = new Set([...ACT_TABLE_GROUPS, ...ACT_NAME_GROUPS].map(g => g[0]));
+    const nameGroups = [...ACT_NAME_GROUPS,
+      ...Object.keys(activities).filter(k => !listed.has(k)).sort().map(k => [k, k])];
+    for (const [catKey, catLabel] of nameGroups) {
       const bucket = activities[catKey];
       if (!bucket) continue;
       out.push(`### ${catLabel}`, '');
