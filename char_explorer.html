@@ -259,18 +259,28 @@
     /* ── tabbed sections ── */
     #rendered .tab-bar {
       display: flex;
-      flex-wrap: wrap;
+      /* The sheet sits in a fixed-width column, so the bar never gets more room no
+         matter how wide the window is — with nine tabs the last one used to wrap to
+         a line of its own. Keep them on one row and let the row scroll instead; the
+         tighter pill padding below means it only ever has to at very small sizes. */
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
       gap: 0.4rem;
       position: sticky;
       top: 0;
       background: linear-gradient(var(--bg) 78%, transparent);
-      padding: 0.7rem 0 0.55rem;
+      padding: 0.7rem 0 0.7rem;
       margin: 0 0 0.8rem;
       z-index: 50;
       border-bottom: 1px solid var(--border);
     }
+    #rendered .tab-bar::-webkit-scrollbar { display: none; }
     #rendered .tab-btn {
-      padding: 0.45rem 1.05rem;
+      flex: 0 0 auto;
+      white-space: nowrap;
+      padding: 0.45rem 0.8rem;
       border: 1px solid var(--border);
       border-radius: 999px;
       background: var(--surface-2);
@@ -1410,7 +1420,12 @@ function parseSpellsets(char) {
     for (const lnode of children(sc, 'levels')) {
       const levelNum = txt(lnode, 'level') || lnode.tagName.replace(/\D/g, '');
       const spells = children(lnode, 'spells').flatMap(sp => {
-        const name = txt(sp, 'name');
+        // FG's plain-text fields sometimes carry a literal "\n" (backslash-n, not a
+        // real newline) as a stray line-break marker from hand-editing — seen at the
+        // end of a hand-typed row name. Strip it here so the trailing-tag regexes in
+        // dedupeSignatureClones/checkRepertoireSize (anchored on \s*$) still match;
+        // a real newline is already removed by txt()'s trim().
+        const name = txt(sp, 'name').replace(/\\n\s*$/, '').trim();
         if (!name) return [];
         // Searchable prose: effects + save tiers + heightened + trigger
         const desc = [
@@ -2446,10 +2461,14 @@ function checkMissingAutomation(inventory) {
 // An activity's mechanics live in its <actions> node: the roll it makes and the
 // effects it applies per success tier. Fantasy Grounds' library ships the generic
 // actions already wired — Demoralize rolls Intimidation vs Will and applies
-// Frightened — but an activity created from a feat, class feature or item usually
-// arrives bare, so clicking it rolls nothing and applies nothing. Only those three
-// categories are checked; the basic encounter and exploration actions are mostly
-// narrative and would drown the report.
+// Frightened — but a feat/class-feature/item activity is frequently bare even in
+// FG's own library, not just when hand-added: manual-trigger reactions (Reactive
+// Strike says to roll a normal Strike; Cat's Luck is a manual reroll) legitimately
+// carry no <actions> at all. So an empty node here isn't proof of a missing
+// automation, only a candidate worth a look — hence the low-confidence 💡, and
+// why a text-mined hint (a bonus/penalty or condition keyword) is called out
+// separately. Only those three categories are checked; the basic encounter and
+// exploration actions are mostly narrative and would drown the report.
 const AUTOMATABLE_ACT_CATEGORIES = ['Feat Activities', 'Class Activities', 'Item Activities'];
 const ACT_CONDITION_RE = /\b(frightened|clumsy|stupefied|drained|enfeebled|sickened|slowed|quickened|prone|grabbed|restrained|off-guard|flat-footed|dazzled|blinded|deafened|fleeing|paralyzed|stunned|unconscious|persistent damage|temporary hit points)\b/i;
 const ACT_BONUS_RE = /[+-]\d+\s+(?:\w+\s+)?(?:status|circumstance|item)\s+(?:bonus|penalty)/i;
@@ -2505,6 +2524,28 @@ function checkPerceptionEffectKey(char) {
   return issues;
 }
 
+// ── Entry names carrying export residue ──────────────────────────────────────
+// A name holding a literal "\n" (backslash-n, two characters, not a line break) or
+// a spliced-in file name is left over from a bad export or a hand edit. The parsers
+// strip that residue so it can't skew a spells-known count or stop a "(MA)" tag
+// matching, which means nothing else on the page would ever mention it again —
+// so it gets said here once, with the spelling to type back into Fantasy Grounds.
+function checkNameArtifacts(char) {
+  const issues = [], seen = new Set();
+  for (const el of char.querySelectorAll('name')) {
+    const raw = (el.textContent || '').trim();
+    if (!/\\n|[\w-]+\.xml/i.test(raw) || seen.has(raw)) continue;
+    seen.add(raw);
+    const clean = raw.replace(/\\n/g, ' ').replace(/[\w-]+\.xml/gi, ' ').replace(/\s+/g, ' ').trim();
+    issues.push(
+      `  ⚠ An entry is stored as \`${raw}\` — the \`${/\\n/.test(raw) ? '\\n' : '.xml'}\` is export residue, ` +
+      `not part of the name. It's ignored everywhere in this report, but Fantasy Grounds still shows it; ` +
+      `rename the entry to **${clean || '(the real name)'}** to clear it.`
+    );
+  }
+  return issues;
+}
+
 // ── Apex items (ability boost) ────────────────────────────────────────────────
 // An invested apex item raises one ability modifier by 1, or to +4 if that's
 // higher. The PFRPG2 ruleset has no ability-score automation — its [ABILITY …]
@@ -2516,9 +2557,15 @@ function checkPerceptionEffectKey(char) {
 function checkApexAbility(abilities, inventory) {
   const mod = score => Math.floor((score - 10) / 2);
   const apexAbilityOf = item => {
-    const m = item.desc.match(
-      /increases? (?:your |the |its )?(strength|dexterity|constitution|intelligence|wisdom|charisma)\s+modifier/i);
-    return m ? m[1].toLowerCase() : null;
+    // Paizo's apex boilerplate reads "increase your X modifier by 1" (Crown of
+    // Intellect and, so far, every other apex item in this app's test data), but
+    // also match the reversed order ("your X modifier increases by 1") defensively
+    // — same sentence, no extra false-match risk since both sides still require
+    // "<ability> modifier" adjacent.
+    const ABIL = 'strength|dexterity|constitution|intelligence|wisdom|charisma';
+    const m = item.desc.match(new RegExp(
+      `(?:increases? (?:your |the |its )?(${ABIL})\\s+modifier|(${ABIL})\\s+modifier\\s+increases?)`, 'i'));
+    return m ? (m[1] || m[2]).toLowerCase() : null;
   };
 
   const apex     = inventory.filter(i => /\bapex\b/i.test(i.traits) || /\bapex\b/i.test(i.subtype));
@@ -3021,6 +3068,7 @@ function runConsistencyChecks(char, skills, effects, abilities, inventory, spell
     ['Apex item ability boost (no FG automation — manual entry only)',  checkApexAbility(abilities, inventory)],
     ['Activities with no actions attached',                             checkActivityAutomation(parseActivities(char))],
     ['Perception effects keyed as SKILL (inert)',                       checkPerceptionEffectKey(char)],
+    ['Entry names carrying export residue',                            checkNameArtifacts(char)],
     ['Signature spells (spontaneous casters)',                         checkSignatureSpells(char, spellsets)],
     ['Spells known per rank (spontaneous repertoires)',                checkRepertoireSize(spellsets)],
     ['Spell DC key attribute (per class/archetype)',                   checkSpellDcAttribute(char, abilities)],
