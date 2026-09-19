@@ -8245,7 +8245,7 @@
 				<name type="string">PP</name>
 			</id-00001>
 			<id-00002>
-				<amount type="number">504</amount>
+				<amount type="number">526</amount>
 				<name type="string">GP</name>
 			</id-00002>
 			<id-00003>
@@ -11109,7 +11109,7 @@
 		</languagelist>
 		<level type="number">16</level>
 		<name type="string">Tevok</name>
-		<notes type="string">Arcane Evolution Spell: Command\n\nRetrain 15te pro 14tage kann Tevok drei Sprüche retrainen\n1te Phase 14 Tage Soc Rank 5 Slither -&gt; Heal, \n2te Phase 14 Tage\n3te Phase schon beim letzten Mal? Stefan fragen\n\n\nWizard dedication: Illusion\nBard Dedication Muse: Enigma\nCoin of Fortune (Gold): 6 Ladungen\n\nPrimary Branch:      Cascade Bearers     Lvl: 15  (0 Schatzpunkte)\nSecondary Branch: Emerald Boughs      Lvl: 7\n\nSteeped in History: You gain a +2 circumstance bonus to Recall Knowledge about the Magaambya, the tenets or history of your branch, and members of your branch.\nBranch Influence +: You gain a +2 circumstance bonus on Deception, Diplomacy, Intimidation, and Performance checks to interact with members of the branch.\n\n\nCollegiate Attendant: Arcane Cantrip Scatter Scree \n\n\nSkilled Heritage: (Diplomacy) Lvl 1 Trained Lvl 5 Expert \nCommon (Mwangi), Draconic, Orcish\nBlau Gelbe Perle von Lehrer Ot -&gt; Armband\nCantrip: Read Aura zusätzlich\nZimmer E (letztes Zimmer Süd Osten Hauptgang)\nNotes: \nIgnatci -&gt; Rabatt für Alchemistische Ausrüstung\nEsi: Unser Guide, hat ein Messi Zimmer\nChizire: Frat boy\nAnker: Gnollart, sehr scheu. Lieb aber nicht hamlos\nLumusi Yao: Köchin. Gibt uns eine Glasperle(Frucht) fürs Armband. Aushilfe gesucht -&gt; Downtime income\nXhokan: Kobold Quartermaster Pulverfass. Perle formen aus Lehm für ihn, Perle von Ihm fürs Armband(Prall gefüllter Sack). Stipendium (40gold initial, jeden Monat 4gold). Hat Pergament, Tinte, Öle, Tränke, ... at all. Weiss wer was hat was er nicht slebst hat. Er kauft uns auch Gegenstände ab. \nHeibram. Zwerg. \nAufgabe von Heibram und Esi: Geheimer Markt Küken(mind 4) von Blauen Hühnern Ojofiri, Bäuerin will wieder züchten.\nOkoro: Human Athlet, Brettspiele Fan57\n\nLehrerin Ulava (ambivalent .. vieleicht wird aus euch ja was ... oder auch nicht)\nLehrer Zuma (Excentrischer Halborc, defensive magie, Wahrsager?)\nLeherer Ayuwari (Warrior)\n\nDajermube\n1x reroll +4 (Mythisch)\n1x Harm or Heal auf 8tem Grad\n1x Sunburst or Moonburst 8th (verbraucht)\n\n\n3 Wochen downtime\n3 Monate Semester </notes>
+		<notes type="string">Arcane Evolution Spell: Command\n\nRetrain 15te pro 14tage kann Tevok drei Sprüche retrainen\n1te Phase 14 Tage Soc Rank 5 Slither -&gt; Heal, \n2te Phase 14 Tage\n3te Phase schon beim letzten Mal? Stefan fragen\n\n\nWizard dedication: Illusion\nBard Dedication Muse: Enigma\nCoin of Fortune (Gold): 6 Ladungen\n\nPrimary Branch:      Cascade Bearers     Lvl: 16\nSecondary Branch: Emerald Boughs      Lvl: 7\n\nSteeped in History: You gain a +2 circumstance bonus to Recall Knowledge about the Magaambya, the tenets or history of your branch, and members of your branch.\nBranch Influence +: You gain a +2 circumstance bonus on Deception, Diplomacy, Intimidation, and Performance checks to interact with members of the branch.\n\n\nCollegiate Attendant: Arcane Cantrip Scatter Scree \n\n\nSkilled Heritage: (Diplomacy) Lvl 1 Trained Lvl 5 Expert \nCommon (Mwangi), Draconic, Orcish\nBlau Gelbe Perle von Lehrer Ot -&gt; Armband\nCantrip: Read Aura zusätzlich\nZimmer E (letztes Zimmer Süd Osten Hauptgang)\nNotes: \nIgnatci -&gt; Rabatt für Alchemistische Ausrüstung\nEsi: Unser Guide, hat ein Messi Zimmer\nChizire: Frat boy\nAnker: Gnollart, sehr scheu. Lieb aber nicht hamlos\nLumusi Yao: Köchin. Gibt uns eine Glasperle(Frucht) fürs Armband. Aushilfe gesucht -&gt; Downtime income\nXhokan: Kobold Quartermaster Pulverfass. Perle formen aus Lehm für ihn, Perle von Ihm fürs Armband(Prall gefüllter Sack). Stipendium (40gold initial, jeden Monat 4gold). Hat Pergament, Tinte, Öle, Tränke, ... at all. Weiss wer was hat was er nicht slebst hat. Er kauft uns auch Gegenstände ab. \nHeibram. Zwerg. \nAufgabe von Heibram und Esi: Geheimer Markt Küken(mind 4) von Blauen Hühnern Ojofiri, Bäuerin will wieder züchten.\nOkoro: Human Athlet, Brettspiele Fan57\n\nLehrerin Ulava (ambivalent .. vieleicht wird aus euch ja was ... oder auch nicht)\nLehrer Zuma (Excentrischer Halborc, defensive magie, Wahrsager?)\nLeherer Ayuwari (Warrior)\n\nDajermube\n1x reroll +4 (Mythisch)\n1x Harm or Heal auf 8tem Grad\n1x Sunburst or Moonburst 8th (verbraucht)\n\n\n3 Wochen downtime\n3 Monate Semester </notes>
 		<portrait type="token">portraits/Strength of Thousands/tevok.webp</portrait>
 		<proficiencies>
 			<attacks>
@@ -11925,7 +11925,7 @@
 		</speed>
 		<spelldisplaymode type="string">action</spelldisplaymode>
 		<spelldisplaymode_gm type="string">action</spelldisplaymode_gm>
-		<spellmode type="string">standard</spellmode>
+		<spellmode type="string">preparation</spellmode>
 		<spellset>
 			<id-00001>
 				<availablelevel0 type="number">2</availablelevel0>
@@ -11933,9 +11933,9 @@
 				<availablelevel10 type="number">0</availablelevel10>
 				<availablelevel2 type="number">2</availablelevel2>
 				<availablelevel3 type="number">2</availablelevel3>
-				<availablelevel4 type="number">1</availablelevel4>
+				<availablelevel4 type="number">2</availablelevel4>
 				<availablelevel5 type="number">2</availablelevel5>
-				<availablelevel6 type="number">0</availablelevel6>
+				<availablelevel6 type="number">1</availablelevel6>
 				<availablelevel7 type="number">0</availablelevel7>
 				<availablelevel8 type="number">0</availablelevel8>
 				<availablelevel9 type="number">0</availablelevel9>
@@ -12728,6 +12728,7 @@
 								<area type="string">20-foot burst</area>
 								<cast type="number">0</cast>
 								<casting type="string"></casting>
+								<dataversion type="number">0</dataversion>
 								<duration type="string">10 minutes</duration>
 								<effects type="formattedtext">
 									<p>You create an illusory visual image of a stationary object. The entire image must fit within the spell's area. The object appears to animate naturally, but it doesn't make sounds or generate smells. For example, water would appear to pour down an illusory waterfall, but it would be silent.</p>
@@ -12739,6 +12740,9 @@
 									<p>
 										<b>(5th) </b>As the 2nd-rank version, but the duration is unlimited.</p>
 								</heightened>
+								<howtouse type="formattedtext">
+									<p />
+								</howtouse>
 								<level type="number">1</level>
 								<linkedspells />
 								<locked type="number">1</locked>
@@ -12840,6 +12844,81 @@
 								<traditions type="string">arcane, occult</traditions>
 								<traits type="string">CONCENTRATE, FORCE, MANIPULATE</traits>
 							</id-00008>
+							<id-00009>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Enfeebled: 1</label>
+										<order type="number">2</order>
+										<resultstate type="string">success</resultstate>
+										<type type="string">effect</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Enfeebled: 2</label>
+										<order type="number">3</order>
+										<resultstate type="string">failure</resultstate>
+										<type type="string">effect</type>
+									</id-00003>
+									<id-00004>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Enfeebled: 3</label>
+										<order type="number">4</order>
+										<resultstate type="string">critfailure</resultstate>
+										<type type="string">effect</type>
+									</id-00004>
+								</actions>
+								<casting type="string"></casting>
+								<critfailure type="string">The target is enfeebled 3 for 1 minute.</critfailure>
+								<critsuccess type="string">The target is unaffected.</critsuccess>
+								<duration type="string">varies</duration>
+								<effects type="formattedtext">
+									<p>You sap the target's strength, depending on its Fortitude save.</p>
+								</effects>
+								<failure type="string">The target is enfeebled 2 for 1 minute.</failure>
+								<level type="number">1</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Enfeeble</name>
+								<range type="string">30 feet</range>
+								<savingthrow type="string">Fortitude</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">1</spcost>
+								<success type="string">The target is enfeebled 1 until the start of your next turn.</success>
+								<targets type="string">1 creature</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, divine, occult</traditions>
+								<traits type="string">CONCENTRATE, MANIPULATE</traits>
+							</id-00009>
 							<id-00010>
 								<actions>
 									<id-00001>
@@ -13430,6 +13509,7 @@
 								<linkedspells />
 								<locked type="number">1</locked>
 								<name type="string">Quick Sort</name>
+								<prepared type="number">1</prepared>
 								<range type="string">10 feet</range>
 								<showapplyallactions type="number">0</showapplyallactions>
 								<source type="string">Impossible Magic</source>
@@ -13474,7 +13554,7 @@
 								<linkedspells />
 								<locked type="number">1</locked>
 								<name type="string">Pocket Library</name>
-								<prepared type="number">1</prepared>
+								<prepared type="number">0</prepared>
 								<showapplyallactions type="number">0</showapplyallactions>
 								<source type="string">Secrets of Magic</source>
 								<sourceoriginal type="string">Pathfinder 2 RPG - Secrets of Magic</sourceoriginal>
@@ -13588,6 +13668,44 @@
 								<traditions type="string">arcane, primal</traditions>
 								<traits type="string">CONCENTRATE, MANIPULATE</traits>
 							</id-00001>
+							<id-00002>
+								<actions>
+									<id-00001>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">10</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">1</includeinminlist>
+										<label type="string">See the Unseen</label>
+										<order type="number">1</order>
+										<targeting type="string">self</targeting>
+										<type type="string">effect</type>
+									</id-00001>
+								</actions>
+								<casting type="string"></casting>
+								<duration type="string">10 minutes</duration>
+								<effects type="formattedtext">
+									<p>Your gaze pierces through illusions and finds invisible creatures and spirits. You can see invisible creatures as though they weren't invisible, although their features are blurred, making them concealed and difficult to identify. You can also see incorporeal creatures, like ghosts, phased through an object from within 10 feet of an object's surface as blurry shapes seen through those objects. Subtler clues also grant you a +2 status bonus to checks you make to disbelieve illusions.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(5th) </b>This spell has a duration of 8 hours.</p>
+								</heightened>
+								<level type="number">2</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">See the Unseen</name>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">3</spcost>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, divine, occult</traditions>
+								<traits type="string">CONCENTRATE, MANIPULATE, REVELATION</traits>
+							</id-00002>
 							<id-00003>
 								<actions>
 									<id-00001>
@@ -14287,6 +14405,79 @@
 								<traditions type="string">arcane, occult</traditions>
 								<traits type="string">CONCENTRATE, MANIPULATE, SCRYING</traits>
 							</id-00001>
+							<id-00002>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Blindness; Blinded</label>
+										<order type="number">2</order>
+										<resultstate type="string">success</resultstate>
+										<type type="string">effect</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Blindness; Blinded</label>
+										<order type="number">3</order>
+										<resultstate type="string">failure</resultstate>
+										<type type="string">effect</type>
+									</id-00003>
+									<id-00004>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Blindness; Blinded</label>
+										<order type="number">4</order>
+										<resultstate type="string">critfailure</resultstate>
+										<type type="string">effect</type>
+									</id-00004>
+								</actions>
+								<casting type="string"></casting>
+								<critfailure type="string">The target is blinded permanently.</critfailure>
+								<critsuccess type="string">The target is unaffected.</critsuccess>
+								<effects type="formattedtext">
+									<p>You blind the target. The effect is determined by the target's Fortitude save. The target then becomes temporarily immune for 1 minute.</p>
+								</effects>
+								<failure type="string">The target is blinded for 1 minute.</failure>
+								<level type="number">3</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Blindness</name>
+								<range type="string">30 feet</range>
+								<savingthrow type="string">Fortitude</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">5</spcost>
+								<success type="string">The target is blinded until its next turn begins.</success>
+								<targets type="string">1 creature</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, divine, occult, primal</traditions>
+								<traits type="string">CONCENTRATE, INCAPACITATION, MANIPULATE</traits>
+							</id-00002>
 							<id-00003>
 								<actions>
 									<id-00001>
@@ -14483,6 +14674,71 @@
 								<traditions type="string">arcane, occult</traditions>
 								<traits type="string">CONCENTRATE, INCAPACITATION, MANIPULATE, MENTAL</traits>
 							</id-00006>
+							<id-00007>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<onmissdamage type="string">half</onmissdamage>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">2d6</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">void</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">all</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">1</includeinminlist>
+										<label type="string">Gain Temp HPs (half of damage done)</label>
+										<order type="number">3</order>
+										<type type="string">effect</type>
+									</id-00003>
+								</actions>
+								<casting type="string"></casting>
+								<effects type="formattedtext">
+									<p>Your touch leeches the lifeblood out of a target to empower yourself. You deal 6d6 void damage to the target. You gain temporary Hit Points equal to half the void damage the target takes (after applying resistances and the like). You lose any remaining temporary Hit Points after 1 minute.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The damage increases by 2d6.</p>
+								</heightened>
+								<level type="number">3</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Vampiric Feast</name>
+								<range type="string">touch</range>
+								<savingthrow type="string">basic Fortitude</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">5</spcost>
+								<superscripts type="string">H</superscripts>
+								<targets type="string">1 living creature</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, divine, occult</traditions>
+								<traits type="string">CONCENTRATE, DEATH, MANIPULATE, VOID</traits>
+							</id-00007>
 							<id-00010>
 								<actions>
 									<id-00001>
@@ -15617,6 +15873,7 @@
 								<linkedspells />
 								<locked type="number">1</locked>
 								<name type="string">Mirage</name>
+								<prepared type="number">1</prepared>
 								<range type="string">500 feet</range>
 								<showapplyallactions type="number">0</showapplyallactions>
 								<source type="string">Player Core</source>
@@ -15626,9 +15883,189 @@
 								<traditions type="string">arcane, occult, primal</traditions>
 								<traits type="string">UNCOMMON, CONCENTRATE, ILLUSION, MANIPULATE</traits>
 							</id-00009>
+							<id-00010>
+								<actions>
+									<id-00001>
+										<applyusage type="number">0</applyusage>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<onmissdamage type="string">half</onmissdamage>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<showresulttext type="number">1</showresulttext>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<applyusage type="number">0</applyusage>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d4</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">piercing</type>
+											</id-00001>
+											<id-00002>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d4</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">void</type>
+											</id-00002>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">2</order>
+										<type type="string">damage</type>
+									</id-00002>
+									<id-00003>
+										<applyusage type="number">0</applyusage>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdice type="dice"></durdice>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Vampiric Maiden; Immobilized</label>
+										<order type="number">3</order>
+										<resultstate type="string">failureminus</resultstate>
+										<type type="string">effect</type>
+									</id-00003>
+								</actions>
+								<casting type="string"></casting>
+								<critfailure type="string">The target takes double damage and is immobilized by the vampiric maiden for 1 round or until it Escapes (the DC is your spell DC), whichever comes first.</critfailure>
+								<critsuccess type="string">The target is unaffected.</critsuccess>
+								<dataversion type="number">0</dataversion>
+								<effects type="formattedtext">
+									<p>A ghostly iron maiden snaps shut on the target and drains its vitality for your gain. This deals 4d4 piercing damage and 4d4 void damage, and the target must attempt a Fortitude save. You gain temporary Hit Points equal to the void damage the target takes (after applying resistances, weaknesses, and the like). You lose any remaining temporary Hit Points after 1 minute.</p>
+								</effects>
+								<failure type="string">The target is briefly trapped within the vampiric maiden. The target takes full damage and is immobilized by the iron maiden for 1 round or until it uses an Interact action to extricate itself, whichever comes first.</failure>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The piercing and void damage increase by 1d4 each.</p>
+								</heightened>
+								<level type="number">4</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Vampiric Maiden</name>
+								<range type="string">30 feet</range>
+								<savingthrow type="string">Fortitude</savingthrow>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<source type="string">Player Core 2</source>
+								<spcost type="number">7</spcost>
+								<spelltypelabel type="string">S</spelltypelabel>
+								<success type="string">The target takes half damage.</success>
+								<superscripts type="string">H</superscripts>
+								<targets type="string">1 creature</targets>
+								<traditions type="string">arcane, divine, occult</traditions>
+								<traits type="string">CONCENTRATE, MANIPULATE, VOID</traits>
+							</id-00010>
+							<id-00011>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<onmissdamage type="string">half</onmissdamage>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">will</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">2d6</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">mental</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">all</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">0</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Frightened: 1</label>
+										<order type="number">3</order>
+										<resultstate type="string">success</resultstate>
+										<type type="string">effect</type>
+									</id-00003>
+									<id-00004>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">0</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Frightened: 2</label>
+										<order type="number">4</order>
+										<resultstate type="string">failure</resultstate>
+										<type type="string">effect</type>
+									</id-00004>
+									<id-00005>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Frightened: 4; Fleeing</label>
+										<order type="number">5</order>
+										<resultstate type="string">critfailure</resultstate>
+										<type type="string">effect</type>
+									</id-00005>
+								</actions>
+								<casting type="string"></casting>
+								<critfailure type="string">The target takes double damage, is frightened 4, and is fleeing for as long as it's frightened.</critfailure>
+								<critsuccess type="string">The target is unaffected.</critsuccess>
+								<effects type="formattedtext">
+									<p>You force the target to see a vision of its own death. It takes 8d6 mental damage with a Will save. If the target is reduced to 0 HP by this spell, its vision becomes reality and kills it instantly.</p>
+								</effects>
+								<failure type="string">The target takes full damage and is frightened 2.</failure>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The damage increases by 2d6.</p>
+								</heightened>
+								<level type="number">4</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Vision of Death</name>
+								<range type="string">120 feet</range>
+								<savingthrow type="string">Will</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">7</spcost>
+								<success type="string">The target takes half damage and is frightened 1.</success>
+								<superscripts type="string">H</superscripts>
+								<targets type="string">1 living creature</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, occult</traditions>
+								<traits type="string">CONCENTRATE, DEATH, EMOTION, FEAR, MANIPULATE, MENTAL</traits>
+							</id-00011>
 						</spells>
 						<totalcast type="number">0</totalcast>
-						<totalprepared type="number">1</totalprepared>
+						<totalprepared type="number">2</totalprepared>
 					</level4>
 					<level5>
 						<level type="number">5</level>
@@ -15903,6 +16340,57 @@
 								<traditions type="string">arcane, occult</traditions>
 								<traits type="string">CONCENTRATE, MANIPULATE, SHADOW</traits>
 							</id-00005>
+							<id-00006>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">reflex</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">2d6</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">cold</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">all</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+								</actions>
+								<area type="string">varies</area>
+								<casting type="string"> to </casting>
+								<effects type="formattedtext">
+									<p>Freezing winds extend from your hands, pushing away from you with great force. If you Cast this Spell with 2 actions, it has an area of a 60-foot cone; if you Cast this Spell with 3 actions, it has a range of 500 feet and an area of a 30-foot burst. Each creature in the area takes 10d6 cold damage with a basic Reflex save. Snowdrifts and icy gales fill the area until the start of your next turn, making the area difficult terrain.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The damage increases by 2d6.</p>
+								</heightened>
+								<level type="number">5</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Howling Blizzard</name>
+								<savingthrow type="string">Reflex</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">9</spcost>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, primal</traditions>
+								<traits type="string">AIR, COLD, CONCENTRATE, MANIPULATE</traits>
+							</id-00006>
 							<id-00007>
 								<actions>
 									<id-00001>
@@ -16110,6 +16598,82 @@
 								<traditions type="string">arcane, occult</traditions>
 								<traits type="string">CONCENTRATE, FORCE, MANIPULATE</traits>
 							</id-00009>
+							<id-00010>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<onmissdamage type="string">half</onmissdamage>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d8</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">poison</type>
+											</id-00001>
+											<id-00002>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d8</dice>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">poison</type>
+											</id-00002>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">all</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">1</includeinminlist>
+										<label type="string">Toxic Cloud (20' Burst, Moving Away at 10' round)</label>
+										<order type="number">3</order>
+										<targeting type="string">self</targeting>
+										<type type="string">effect</type>
+									</id-00003>
+								</actions>
+								<area type="string">20-foot burst</area>
+								<casting type="string"></casting>
+								<duration type="string">1 minute</duration>
+								<effects type="formattedtext">
+									<p>You conjure a poisonous fog. This functions as mist, except the area moves 10 feet away from you each round. A breathing creature that starts its turn in the area takes 6d8 poison damage with a basic Fortitude save. You can Dismiss the spell.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The damage increases by 1d8.</p>
+								</heightened>
+								<level type="number">5</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Toxic Cloud</name>
+								<range type="string">120 feet</range>
+								<savingthrow type="string">basic Fortitude</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">9</spcost>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, primal</traditions>
+								<traits type="string">CONCENTRATE, DEATH, MANIPULATE, POISON</traits>
+							</id-00010>
 							<id-00011>
 								<actions>
 									<id-00001>
@@ -16222,13 +16786,69 @@
 								<traditions type="string">arcane, occult</traditions>
 								<traits type="string">AUDITORY, CONCENTRATE, EMOTION, FEAR, ILLUSION, MANIPULATE, MENTAL, VISUAL</traits>
 							</id-00011>
+							<id-00012>
+								<actions>
+									<id-00001>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">2d6</dice>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">cold</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<type type="string">damage</type>
+									</id-00001>
+									<id-00002>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">1</includeinminlist>
+										<label type="string">Wall of Ice (1'x60'x10', AC 10, Hardness 10, HP 40, Weak 15 fire)</label>
+										<order type="number">2</order>
+										<targeting type="string">self</targeting>
+										<type type="string">effect</type>
+									</id-00002>
+								</actions>
+								<casting type="string"></casting>
+								<duration type="string">1 minute</duration>
+								<effects type="formattedtext">
+									<p>You sculpt an ice barrier that blocks sight and, once shattered, freezes foes. You create either a 1-foot-thick wall of ice in a straight line up to 60 feet long and 10 feet high (the wall doesn't have to be vertical, but it must be anchored on both sides to a solid surface) or a 1-foot-thick, 10-foot radius hemisphere of ice. The ice that makes up the wall is opaque. If you wish, the wall can be of a smaller length, height, or radius. You must create the wall in an unbroken open space so its edges don't pass through any creatures or objects, or the spell is lost.</p>
+									<p>Each 10-foot-by-10-foot section of the wall has AC 10, Hardness 10, and 40 Hit Points, and it's immune to critical hits, cold damage, and precision damage. A section also has weakness to fire 15; a section of the wall destroyed by fire melts, evaporating into water and steam. A section destroyed by means other than fire leaves behind a chilling mass of ice that is difficult terrain and deals 2d6 cold damage to any creature passing through it.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+2) </b>The Hit Points of each section of the wall increase by 10, and the cold damage dealt to creatures crossing a destroyed section increases by 1d6.</p>
+								</heightened>
+								<level type="number">5</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Wall of Ice</name>
+								<range type="string">120 feet</range>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">9</spcost>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, primal</traditions>
+								<traits type="string">COLD, CONCENTRATE, MANIPULATE, WATER</traits>
+							</id-00012>
 						</spells>
 						<totalcast type="number">0</totalcast>
 						<totalprepared type="number">2</totalprepared>
 					</level5>
 					<level6>
 						<level type="number">6</level>
-						<maxprepared type="number">0</maxprepared>
+						<maxprepared type="number">1</maxprepared>
 						<spells>
 							<id-00001>
 								<actions>
@@ -16291,7 +16911,7 @@
 								<linkedspells />
 								<locked type="number">1</locked>
 								<name type="string">Dragon Form</name>
-								<prepared type="number">0</prepared>
+								<prepared type="number">1</prepared>
 								<showapplyallactions type="number">0</showapplyallactions>
 								<source type="string">Player Core</source>
 								<spcost type="number">11</spcost>
@@ -16299,28 +16919,739 @@
 								<traditions type="string">arcane, divine, occult, primal</traditions>
 								<traits type="string">CONCENTRATE, MANIPULATE, POLYMORPH</traits>
 							</id-00001>
+							<id-00002>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<onmissdamage type="string">half</onmissdamage>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">reflex</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d12</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">electricity</type>
+											</id-00001>
+											<id-00002>
+												<bonus type="number">0</bonus>
+												<dice type="dice">2d12</dice>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">electricity</type>
+											</id-00002>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">all</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+								</actions>
+								<casting type="string"></casting>
+								<effects type="formattedtext">
+									<p>You discharge a powerful bolt of lightning at the target, dealing 8d12 electricity damage. The target must attempt a basic Reflex save. The electricity then arcs to another creature within 30 feet of the first target, jumps to another creature within 30 feet of that target, and so on. You can end the chain at any point. You can't target the same creature more than once, and you must have line of effect to all targets. Roll the damage only once and apply it to each target (halving or doubling as appropriate for its saving throw outcome). The chain ends if any one of the targets critically succeeds at its save.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The damage increases by 1d12.</p>
+								</heightened>
+								<level type="number">6</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Chain Lightning</name>
+								<range type="string">500 feet</range>
+								<savingthrow type="string">basic Reflex</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">11</spcost>
+								<superscripts type="string">H</superscripts>
+								<targets type="string">1 creature, plus any number of additional creatures</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, primal</traditions>
+								<traits type="string">CONCENTRATE, ELECTRICITY, MANIPULATE</traits>
+							</id-00002>
+							<id-00003>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">will</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<decrease type="string">end</decrease>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Stunned: 1</label>
+										<order type="number">2</order>
+										<resultstate type="string">success</resultstate>
+										<type type="string">effect</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Dominated (Possibly New Saves); Controlled</label>
+										<order type="number">3</order>
+										<resultstate type="string">failureminus</resultstate>
+										<type type="string">effect</type>
+									</id-00003>
+								</actions>
+								<casting type="string"></casting>
+								<critfailure type="string">As a failure, but the target receives a new save only if you give it a new order that is against its nature, such as killing its allies.</critfailure>
+								<critsuccess type="string">The target is unaffected.</critsuccess>
+								<duration type="string">until your next daily preparations</duration>
+								<effects type="formattedtext">
+									<p>You take command of the target, forcing it to obey you. If you issue an obviously self-destructive order, the target doesn't act until you issue a new order. The effect depends on its Will save.</p>
+								</effects>
+								<failure type="string">You control the target. It gains the controlled condition, but it can attempt a Will save at the end of each of its turns. On a success, the spell ends.</failure>
+								<heightened type="formattedtext">
+									<p>
+										<b>(10th) </b>The duration is unlimited.</p>
+								</heightened>
+								<level type="number">6</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Dominate</name>
+								<range type="string">30 feet</range>
+								<savingthrow type="string">Will</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">11</spcost>
+								<success type="string">The target is stunned 1 as it fights off your commands.</success>
+								<superscripts type="string">U, H</superscripts>
+								<targets type="string">1 creature</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, divine, occult</traditions>
+								<traits type="string">UNCOMMON, CONCENTRATE, INCAPACITATION, MANIPULATE, MENTAL</traits>
+							</id-00003>
+							<id-00004>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<onmissdamage type="string">half</onmissdamage>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">2d6</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">negative</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">all</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">1</includeinminlist>
+										<label type="string">Gain Temp HPs (1/2 highest damage done)</label>
+										<order type="number">3</order>
+										<targeting type="string">self</targeting>
+										<type type="string">effect</type>
+									</id-00003>
+								</actions>
+								<area type="string">30-foot cone</area>
+								<casting type="string"></casting>
+								<effects type="formattedtext">
+									<p>You draw in the blood and life force of other creatures through your outstretched arms. You deal 12d6 void damage to living creatures in the area with a basic Fortitude save.</p>
+									<p>You gain temporary Hit Points equal to half the damage a single creature takes from this spell; calculate these temporary Hit Points using the creature that took the most damage. You lose any remaining temporary Hit Points after 1 minute.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The damage increases by 2d6.</p>
+								</heightened>
+								<level type="number">6</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Vampiric Exsanguination</name>
+								<savingthrow type="string">basic Fortitude</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">11</spcost>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, divine, occult</traditions>
+								<traits type="string">CONCENTRATE, DEATH, MANIPULATE, VOID</traits>
+							</id-00004>
+							<id-00005>
+								<actions />
+								<name type="string">To be Determined</name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">11</spcost>
+							</id-00005>
+							<id-00006>
+								<actions>
+									<id-00001>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<type type="string">cast</type>
+									</id-00001>
+								</actions>
+								<casting type="string">10 minutes</casting>
+								<effects type="formattedtext">
+									<p>You and the targets are instantly transported to any location within range, as long as you can identify the location precisely both by its position relative to your starting position and by its appearance (or other identifying features). Incorrect knowledge of the location's appearance usually causes the spell to fail, but it could instead lead to teleporting to an unwanted location or some other unusual mishap determined by the GM. Teleport is not precise over great distances. The targets appear at a distance from the intended destination equal to roughly 1 percent of the total distance traveled, in a direction determined by the GM. For short journeys, this lack of precision is irrelevant, but for long distances this could be up to 1 mile.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(7th) </b>You and the other targets can travel to any location within 1,000 miles.</p>
+									<p>
+										<b>(8th) </b>You and the other targets can travel to any location on the same planet. If you travel more than 1,000 miles, you arrive only 10 miles off target.</p>
+									<p>
+										<b>(9th) </b>You and the other targets can travel to any location on another planet within the same solar system. If you have accurate knowledge of the location's position and appearance, you arrive on the new planet 100 miles off target.</p>
+									<p>
+										<b>(10th) </b>As the 9th-rank version, but you and the other targets can travel to any planet within the same galaxy.</p>
+								</heightened>
+								<level type="number">6</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Teleport</name>
+								<range type="string">100 miles</range>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">11</spcost>
+								<superscripts type="string">U, H</superscripts>
+								<targets type="string">you and up to 4 targets touched, either willing creatures or objects roughly the size of a creature</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, occult</traditions>
+								<traits type="string">UNCOMMON, CONCENTRATE, MANIPULATE, TELEPORTATION</traits>
+							</id-00006>
 						</spells>
 						<totalcast type="number">0</totalcast>
-						<totalprepared type="number">0</totalprepared>
+						<totalprepared type="number">1</totalprepared>
 					</level6>
 					<level7>
 						<level type="number">7</level>
 						<maxprepared type="number">0</maxprepared>
-						<spells />
+						<spells>
+							<id-00001>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Duplicate Foe (Sustained) - 70 HPs</label>
+										<order type="number">2</order>
+										<resultstate type="string">failureminus</resultstate>
+										<targeting type="string">self</targeting>
+										<type type="string">effect</type>
+									</id-00002>
+									<id-00003>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">4d6</dice>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">3</order>
+										<type type="string">damage</type>
+									</id-00003>
+									<id-00004>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">2</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Duplicate Foe (Sustained) - 70 HPs</label>
+										<order type="number">4</order>
+										<resultstate type="string">success</resultstate>
+										<targeting type="string">self</targeting>
+										<type type="string">effect</type>
+									</id-00004>
+								</actions>
+								<casting type="string"></casting>
+								<critsuccess type="string">You fail to create a duplicate.</critsuccess>
+								<duration type="string">sustained up to 1 minute</duration>
+								<effects type="formattedtext">
+									<p>You create a temporary duplicate of an enemy to fight on your behalf. The target can attempt a Fortitude save to disrupt the spell. The duplicate appears in an unoccupied space adjacent to the target and has the target's attack modifier, AC, saving throw modifiers, Perception, and skill modifiers, but it has only 70 Hit Points and lacks the target's special abilities, including immunities, resistances, and weaknesses. It has no magic items except weapon potency runes.</p>
+									<p>The duplicate gains the minion trait, and it can only Stride and Strike. Its Strikes deal the target's normal damage but don't apply added effects, since it doesn't have special abilities. The spell automatically ends if the duplicate's Hit Points drop to 0.</p>
+									<p>The duplicate attacks your enemies to the best of its abilities. You can also try to give it additional instructions; when you Sustain the spell, you can also Command a Minion as part of your action, but the GM determines whether the duplicate follows your command.</p>
+									<p>The duplicate is unstable, so each turn after it takes its actions, it loses 4d6 Hit Points. It's not a living creature, and it can never regain its lost Hit Points in any way.</p>
+								</effects>
+								<failure type="string">The duplicate works as described.</failure>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The level of creature you can target increases by 2. The duplicate has 10 more HP.</p>
+								</heightened>
+								<level type="number">7</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Duplicate Foe</name>
+								<range type="string">30 feet</range>
+								<savingthrow type="string">Fortitude</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">13</spcost>
+								<success type="string">The duplicate deals half damage with its Strikes and the duration is reduced to a maximum of 2 rounds.</success>
+								<superscripts type="string">H</superscripts>
+								<targets type="string">1 enemy of level 15 or lower</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, occult</traditions>
+								<traits type="string">CONCENTRATE, MANIPULATE</traits>
+							</id-00001>
+							<id-00002>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<onmissdamage type="string">half</onmissdamage>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">reflex</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d10</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">cold</type>
+											</id-00001>
+											<id-00002>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d10</dice>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">cold</type>
+											</id-00002>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">all</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+									<id-00003>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d4</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">void</type>
+											</id-00001>
+											<id-00002>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d4</dice>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">void</type>
+											</id-00002>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">3</order>
+										<type type="string">damage</type>
+									</id-00003>
+									<id-00004>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">0</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Blinded</label>
+										<order type="number">4</order>
+										<resultstate type="string">critfailure</resultstate>
+										<type type="string">effect</type>
+									</id-00004>
+								</actions>
+								<area type="string">60-foot burst</area>
+								<casting type="string"></casting>
+								<critfailure type="string">The creature takes double damage and becomes blinded by the darkness for an unlimited duration.</critfailure>
+								<critsuccess type="string">The creature is unaffected.</critsuccess>
+								<effects type="formattedtext">
+									<p>A globe of freezing darkness explodes in the area, dealing 8d10 cold damage to creatures in the area, plus an additional 8d4 void damage to living creatures. Each creature in the area must attempt a Reflex save.</p>
+									<p>If the globe overlaps with an area of magical light or affects a creature affected by magical light, eclipse burst attempts to counteract the light effect.</p>
+								</effects>
+								<failure type="string">The creature takes full damage.</failure>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The cold damage increases by 1d10 and the void damage against the living increases by 1d4.</p>
+								</heightened>
+								<level type="number">7</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Eclipse Burst</name>
+								<range type="string">500 feet</range>
+								<savingthrow type="string">Reflex</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">13</spcost>
+								<success type="string">The creature takes half damage.</success>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, divine, primal</traditions>
+								<traits type="string">COLD, CONCENTRATE, DARKNESS, MANIPULATE, VOID</traits>
+							</id-00002>
+							<id-00003>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">will</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">0</includeinminlist>
+										<label type="string">Frightened: 2</label>
+										<order type="number">2</order>
+										<resultstate type="string">failureminus</resultstate>
+										<type type="string">effect</type>
+									</id-00002>
+									<id-00003>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">1</durmod>
+										<durmult type="number">1</durmult>
+										<durunit type="string">minute</durunit>
+										<effectdcmod type="number">0</effectdcmod>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">1</includeinminlist>
+										<label type="string">Mask of Terror</label>
+										<order type="number">3</order>
+										<type type="string">effect</type>
+									</id-00003>
+								</actions>
+								<casting type="string"></casting>
+								<critfailure type="string">The creature becomes frightened 2, and its action fails and is wasted.</critfailure>
+								<duration type="string">1 minute</duration>
+								<effects type="formattedtext">
+									<p>The target appears to be a gruesome and terrifying creature. The effect is unique to each observer, so a human viewing the target might see a demon with bloody fangs, but a demon observing the target might see a glowing angelic visage.</p>
+									<p>When any creature attempts a hostile action against the target, the creature must attempt a Will save. It is then temporarily immune until the end of its next turn.</p>
+								</effects>
+								<failure type="string">The creature becomes frightened 2 before using its action.</failure>
+								<heightened type="formattedtext">
+									<p>
+										<b>(8th) </b>You can target up to 5 creatures. If a creature uses a hostile action or reaction that affects multiple targets simultaneously, it needs to attempt only one save against mask of terror.</p>
+								</heightened>
+								<level type="number">7</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Mask of Terror</name>
+								<range type="string">30 feet</range>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">13</spcost>
+								<success type="string">The creature is unaffected.</success>
+								<superscripts type="string">H</superscripts>
+								<targets type="string">1 creature</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, occult, primal</traditions>
+								<traits type="string">CONCENTRATE, EMOTION, FEAR, ILLUSION, MANIPULATE, MENTAL, VISUAL</traits>
+							</id-00003>
+						</spells>
 						<totalcast type="number">0</totalcast>
 						<totalprepared type="number">0</totalprepared>
 					</level7>
 					<level8>
 						<level type="number">8</level>
 						<maxprepared type="number">0</maxprepared>
-						<spells />
+						<spells>
+							<id-00001>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<onmissdamage type="string">half</onmissdamage>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">d10</dice>
+												<dicestat type="string">sl</dicestat>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">void</type>
+											</id-00001>
+											<id-00002>
+												<bonus type="number">0</bonus>
+												<dice type="dice">2d10</dice>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">void</type>
+											</id-00002>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">all</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+								</actions>
+								<casting type="string"></casting>
+								<effects type="formattedtext">
+									<p>You pull the moisture from the targets' bodies, dealing 10d10 void damage. Creatures made of water (such as water elementals) and plant creatures use the outcome for one degree of success worse than the result of their saving throw. Creatures whose bodies contain no significant moisture (such as earth elementals) are immune to desiccate.</p>
+								</effects>
+								<heightened type="formattedtext">
+									<p>
+										<b>(+1) </b>The damage increases by 1d10.</p>
+								</heightened>
+								<level type="number">8</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Desiccate</name>
+								<range type="string">500 feet</range>
+								<savingthrow type="string">basic Fortitude</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">15</spcost>
+								<superscripts type="string">H</superscripts>
+								<targets type="string">any number of living creatures</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, primal</traditions>
+								<traits type="string">CONCENTRATE, MANIPULATE, VOID</traits>
+							</id-00001>
+							<id-00002>
+								<actions />
+								<name type="string">Prismatic Wall</name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">15</spcost>
+							</id-00002>
+							<id-00003>
+								<actions>
+									<id-00001>
+										<dmaxstat type="number">0</dmaxstat>
+										<durdicestatmax type="number">0</durdicestatmax>
+										<durmod type="number">0</durmod>
+										<durmult type="number">1</durmult>
+										<effectdcmod type="number">0</effectdcmod>
+										<effectdctype type="string">spelldc</effectdctype>
+										<gmonly type="number">0</gmonly>
+										<includeinminlist type="number">1</includeinminlist>
+										<label type="string">Quandary (Sustained, see text)</label>
+										<order type="number">1</order>
+										<type type="string">effect</type>
+									</id-00001>
+								</actions>
+								<casting type="string"></casting>
+								<critfailure type="string">The target makes no progress and, if it was on the right path, it no longer is.</critfailure>
+								<critsuccess type="string">The target solves the puzzle and escapes.</critsuccess>
+								<duration type="string">sustained</duration>
+								<effects type="formattedtext">
+									<p>You transport the target into an extraplanar puzzle room of mysterious origin, locking them there. Once each turn as a single action, the target can attempt an Occultism check, Perception check, or Thievery check against your spell DC to solve the puzzle. Teleportation effects can't carry the target outside the puzzle room unless they can also traverse the planes, such as interplanar teleport. When the spell ends, the target returns to the space it occupied when it was banished, or to the nearest space if the original is now filled.</p>
+								</effects>
+								<failure type="string">The target makes no progress toward a solution.</failure>
+								<level type="number">8</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Quandary</name>
+								<range type="string">30 feet</range>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">15</spcost>
+								<success type="string">The target is on the right path to the solution. If it was already on the right path, it solves the puzzle and escapes.</success>
+								<targets type="string">1 creature</targets>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, occult</traditions>
+								<traits type="string">CONCENTRATE, EXTRADIMENSIONAL, MANIPULATE, TELEPORTATION</traits>
+							</id-00003>
+						</spells>
 						<totalcast type="number">0</totalcast>
 						<totalprepared type="number">0</totalprepared>
 					</level8>
 					<level9>
 						<level type="number">9</level>
 						<maxprepared type="number">0</maxprepared>
-						<spells />
+						<spells>
+							<id-00001>
+								<actions>
+									<id-00001>
+										<atkmod type="number">0</atkmod>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">1</order>
+										<savedcmod type="number">0</savedcmod>
+										<savetype type="string">fortitude</savetype>
+										<type type="string">cast</type>
+									</id-00001>
+									<id-00002>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">0</bonus>
+												<dice type="dice">9d6</dice>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">0</statmult>
+												<type type="string">void</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">2</order>
+										<resultstate type="string">success</resultstate>
+										<type type="string">damage</type>
+									</id-00002>
+									<id-00003>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">100</bonus>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">0</statmult>
+												<type type="string">void</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">3</order>
+										<resultstate type="string">failure</resultstate>
+										<type type="string">damage</type>
+									</id-00003>
+									<id-00004>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">999</bonus>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">void</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">0</includeinminlist>
+										<order type="number">4</order>
+										<resultstate type="string">critfailure</resultstate>
+										<type type="string">damage</type>
+									</id-00004>
+									<id-00005>
+										<damagelist>
+											<id-00001>
+												<bonus type="number">30</bonus>
+												<dicestatmax type="number">0</dicestatmax>
+												<statmax type="number">0</statmax>
+												<statmult type="number">1</statmult>
+												<type type="string">void</type>
+											</id-00001>
+										</damagelist>
+										<dmgnotspell type="number">0</dmgnotspell>
+										<includeinminlist type="number">1</includeinminlist>
+										<order type="number">5</order>
+										<type type="string">damage</type>
+									</id-00005>
+								</actions>
+								<area type="string">60-foot line</area>
+								<casting type="string"></casting>
+								<critfailure type="string">The creature dies.</critfailure>
+								<critsuccess type="string">The creature is unaffected.</critsuccess>
+								<effects type="formattedtext">
+									<p>You unleash a wave of death to snuff out the life force of those in its path. Each living creature of 17th level or lower in the line must attempt a Fortitude save. If the damage from massacre reduces a creature to 0 Hit Points, that creature dies instantly. If massacre doesn't kill even a single creature, the void energy hungrily turns backward toward you, dealing an additional 30 void damage to every living creature in the line (even those above 17th level) and 30 void damage to you.</p>
+								</effects>
+								<failure type="string">The creature takes 100 void damage.</failure>
+								<heightened type="formattedtext">
+									<p>
+										<b>(10th) </b>The spell can affect living creatures up to 19th level. Increase the damage to 10d6 on a success, and to 115 on a failure.</p>
+								</heightened>
+								<level type="number">9</level>
+								<linkedspells />
+								<locked type="number">1</locked>
+								<name type="string">Massacre</name>
+								<savingthrow type="string">Fortitude</savingthrow>
+								<showapplyallactions type="number">0</showapplyallactions>
+								<source type="string">Player Core</source>
+								<spcost type="number">17</spcost>
+								<success type="string">The creature takes 9d6 void damage.</success>
+								<superscripts type="string">H</superscripts>
+								<text type="formattedtext" />
+								<traditions type="string">arcane, divine, primal</traditions>
+								<traits type="string">CONCENTRATE, DEATH, MANIPULATE, VOID</traits>
+							</id-00001>
+							<id-00002>
+								<actions />
+								<name type="string">Telepatic demand</name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">17</spcost>
+							</id-00002>
+							<id-00003>
+								<actions />
+								<name type="string">Power Word: Kill!</name>
+								<showapplyallactions type="number">1</showapplyallactions>
+								<spcost type="number">17</spcost>
+							</id-00003>
+						</spells>
 						<totalcast type="number">0</totalcast>
 						<totalprepared type="number">0</totalprepared>
 					</level9>
