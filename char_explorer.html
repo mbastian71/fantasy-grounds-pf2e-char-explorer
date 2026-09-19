@@ -259,18 +259,28 @@
     /* ── tabbed sections ── */
     #rendered .tab-bar {
       display: flex;
-      flex-wrap: wrap;
+      /* The sheet sits in a fixed-width column, so the bar never gets more room no
+         matter how wide the window is — with nine tabs the last one used to wrap to
+         a line of its own. Keep them on one row and let the row scroll instead; the
+         tighter pill padding below means it only ever has to at very small sizes. */
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
       gap: 0.4rem;
       position: sticky;
       top: 0;
       background: linear-gradient(var(--bg) 78%, transparent);
-      padding: 0.7rem 0 0.55rem;
+      padding: 0.7rem 0 0.7rem;
       margin: 0 0 0.8rem;
       z-index: 50;
       border-bottom: 1px solid var(--border);
     }
+    #rendered .tab-bar::-webkit-scrollbar { display: none; }
     #rendered .tab-btn {
-      padding: 0.45rem 1.05rem;
+      flex: 0 0 auto;
+      white-space: nowrap;
+      padding: 0.45rem 0.8rem;
       border: 1px solid var(--border);
       border-radius: 999px;
       background: var(--surface-2);
@@ -1410,7 +1420,12 @@ function parseSpellsets(char) {
     for (const lnode of children(sc, 'levels')) {
       const levelNum = txt(lnode, 'level') || lnode.tagName.replace(/\D/g, '');
       const spells = children(lnode, 'spells').flatMap(sp => {
-        const name = txt(sp, 'name');
+        // FG's plain-text fields sometimes carry a literal "\n" (backslash-n, not a
+        // real newline) as a stray line-break marker from hand-editing — seen at the
+        // end of a hand-typed row name. Strip it here so the trailing-tag regexes in
+        // dedupeSignatureClones/checkRepertoireSize (anchored on \s*$) still match;
+        // a real newline is already removed by txt()'s trim().
+        const name = txt(sp, 'name').replace(/\\n\s*$/, '').trim();
         if (!name) return [];
         // Searchable prose: effects + save tiers + heightened + trigger
         const desc = [
@@ -1813,7 +1828,12 @@ function cleanEffectLabel(label, spellName) {
   return label;
 }
 
-const WAND_NAME_RE = /^Magic Wand\s*[-–]\s*(?:(\d+)(?:st|nd|rd|th)-rank\s+)?(.+)/i;
+// Wands get named every which way: "Magic Wand - False Vitality",
+// "Magic Wand - 2nd-rank Tailwind", "Wand of Smoldering Fireballs, Level 5",
+// "6th-Level Wand of Vital Beacon". Rank may lead the name or sit before the spell.
+const WAND_NAME_RE = /^(?:(\d+)(?:st|nd|rd|th)-level\s+)?(?:magic\s+)?wand\s*(?:[-–]\s*|\s+of\s+)(?:(\d+)(?:st|nd|rd|th)-(?:rank|level)\s+)?(.+)$/i;
+// Trailing bookkeeping the spell name never has: ", Level 5", "8h".
+const WAND_SPELL_TRAIL_RE = /\s*(?:,\s*level\s+\d+|\s+\d+\s*h)\s*$/i;
 
 // Returns true if a spell <action> item benefits the caster or willing allies —
 // i.e. should appear in Useful Effects.
@@ -1872,15 +1892,177 @@ function prettifyEffects(s) {
   return s;
 }
 
-function parseTemporaryEffects(char) {
-  const CONSUMABLE_TYPES    = new Set(['consumable', 'alchemical', 'consumables']);
-  const CONSUMABLE_SUBTYPES = new Set([
-    'potion', 'elixir', 'oil', 'talisman', 'snare', 'scroll', 'bomb',
-    'alchemical elixir', 'alchemical bomb', 'alchemical tool',
-    'alchemical poison', 'ammunition',
-  ]);
+const CONSUMABLE_TYPES    = new Set(['consumable', 'alchemical', 'consumables']);
+const CONSUMABLE_SUBTYPES = new Set([
+  'potion', 'elixir', 'oil', 'talisman', 'snare', 'scroll', 'bomb',
+  'alchemical elixir', 'alchemical bomb', 'alchemical tool',
+  'alchemical poison', 'ammunition',
+]);
+const isConsumableItem = item => {
+  const t = txt(item, 'type').toLowerCase(), st = txt(item, 'subtype').toLowerCase();
+  return CONSUMABLE_TYPES.has(t) || CONSUMABLE_SUBTYPES.has(st) ||
+         txt(item, 'traits').toLowerCase().includes('consumable');
+};
+const isWandItem = item =>
+  txt(item, 'type').toLowerCase().includes('wand') || txt(item, 'subtype').toLowerCase().includes('wand');
 
+// ── Activatable items ────────────────────────────────────────────────────────
+// A permanent item you switch on — an apex crown's Search Your Mind, a staff, a
+// once-per-day mask — is neither a wand nor a consumable, so none of the passes
+// below notice it. FG records the activation in two unrelated places and an item
+// may use either or both: an <activation> field on the inventory row, or an entry
+// in the activityset's "Item Activities" group pointing back at the row through
+// shortcut_base. The Crown of Intellect only has the second. Merge them keyed by
+// the item so a power is never listed twice, and leave wands and consumables out
+// — they already have their own table.
+function splitActivation(raw) {
+  // An activation blob can carry its own labelled clauses: "◆ (manipulate);
+  // <b>Frequency</b> once per day; <b>Effect</b> …" (the tags survive as literal
+  // text through the XML). Everything before the first label is the cost and verbs.
+  const s = String(raw || '').replace(/\s+/g, ' ').trim();
+  const grab = key => {
+    const m = s.match(new RegExp(`<b>\\s*${key}\\s*</b>\\s*([^<]*)`, 'i'));
+    return m ? m[1].replace(/^[:;,\s]+|[;,\s]+$/g, '').trim() : '';
+  };
+  return {
+    // Some items run the whole rules text on after a semicolon with no label at
+    // all ("◆ Interact; You push the button to anchor the rod…") — the cost is
+    // only ever the first clause.
+    head:      s.split('<b>')[0].split(';')[0].replace(/[,\s]+$/, '').trim(),
+    frequency: grab('Frequency'),
+    trigger:   grab('Trigger'),
+    effect:    grab('Effect'),
+  };
+}
+
+// Pull a labelled clause ("<b>Effect</b> …") out of an item's description, which is
+// where FG leaves the activation details when the inventory row itself carries none.
+function descClause(item, key) {
+  const d = findPath(item, 'description');
+  if (!d) return '';
+  const m = d.innerHTML.replace(/\s+/g, ' ')
+    .match(new RegExp(`<b>\\s*${key}\\s*</b>\\s*(.*?)(?=<b>|</p>|$)`, 'i'));
+  return m ? m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+    .replace(/^[:;,\s]+|[;,\s]+$/g, '').trim() : '';
+}
+
+// A third place an activation hides: prose only, with no <activation> field and no
+// Item Activities entry — "<b>Activate - Return Force </b>(force, manipulate)
+// <b>Trigger </b>… <b>Effect </b>…". Roughly twenty items across the sample party
+// are described this way and no other, so the description has to be read too.
+function descActivations(item) {
+  const d = findPath(item, 'description');
+  if (!d) return [];
+  const clause = (s, key) => {
+    const m = s.match(new RegExp(`<b>\\s*${key}\\s*</b>\\s*([^<]*)`, 'i'));
+    return m ? m[1].replace(/^[:;,\s]+|[;,\s]+$/g, '').trim() : '';
+  };
+  // Split on the label so an item with two activations yields two rows, and each
+  // chunk's Frequency/Effect can only be read from its own activation.
+  return d.innerHTML.replace(/\s+/g, ' ').split(/<b>\s*Activate\b/i).slice(1)
+    .map(c => {
+      const head = c.match(/^\s*(?:[-–—]\s*([^<]*?))?\s*<\/b>\s*([^<]*)/);
+      // The cost runs on into the rules text whenever the item skips the <b>Effect</b>
+      // label, so stop at the closing bracket of the trait list, or at the first
+      // sentence break when there isn't one.
+      const act = (head?.[2] || '').trim();
+      return {
+        name:       (head?.[1] || '').trim(),
+        activation: (act.match(/^[^.;]*?\)/)?.[0] ?? act.split(/[.;]/)[0]).trim(),
+        frequency:  clause(c, 'Frequency'),
+        effect:     clause(c, 'Effect'),
+      };
+    })
+    .filter(a => a.activation || a.effect);
+}
+
+function parseActivatableItems(char) {
+  const byItem = {};
+  for (const grp of children(char, 'activityset'))
+    for (const sec of children(grp, 'sections'))
+      for (const a of children(sec, 'activities')) {
+        if (txt(a, 'category') !== 'Item Activities') continue;
+        const m = txt(a, 'shortcut_base/recordname').match(/inventorylist\.(id-\d+)/);
+        if (!m) continue;
+        (byItem[m[1]] ??= []).push({
+          name:      txt(a, 'name'),
+          activation:txt(a, 'activation'),
+          frequency: txt(a, 'frequency'),
+          effect:    fgFieldText(a, 'effectsbenefits'),
+        });
+      }
+
+  const rows = [];
+  for (const item of children(char, 'inventorylist')) {
+    const name = txt(item, 'name');
+    if (!name || isWandItem(item) || isConsumableItem(item)) continue;
+    const ownRaw = txt(item, 'activation');
+    // Richest source wins: a linked Item Activity, then the row's own field, then
+    // whatever the description spells out.
+    const powers = byItem[item.tagName]
+      || (ownRaw ? [{ name: '', activation: ownRaw, frequency: txt(item, 'frequency'), effect: '' }]
+                 : descActivations(item));
+    if (!powers.length) continue;
+
+    for (const p of powers) {
+      const parsed = splitActivation(p.activation || ownRaw);
+      const cost   = parseCastCost(parsed.head);
+      // parseCastCost falls back to echoing plain text as `icons` (key 'T'); an
+      // activation like "Cast a Spell" has no glyph, and the words alone say it.
+      const icons  = cost.key && cost.key !== 'T' ? cost.icons : '';
+      // Glyphs out, then tidy what's left: a variable cost ("◆ to ◆◆◆ envision")
+      // strands the "to", and a whole-string parenthetical ("(concentrate)") reads
+      // better unwrapped — but only when it wraps everything, so "envision
+      // (fortune)" keeps its brackets.
+      const verbs  = parsed.head.replace(/[\u0080-\u009F]/g, ' ')
+        .replace(/\s+/g, ' ').trim()
+        .replace(/^to\s+/i, '')
+        .replace(/^\(([^()]*)\)$/, '$1')
+        .trim();
+      // "Crown of Intellect - Search Your Mind" → just the power's own name.
+      const power = p.name.replace(new RegExp('^' + p.name.slice(0, name.length)
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-–—:]\\s*', 'i'), '').trim();
+      const effect = (p.effect || parsed.effect || descClause(item, 'Effect'))
+        .replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
+      rows.push({
+        name:      power && power !== name ? `${name} — ${power}` : name,
+        level:     txt(item, 'level', '0'),
+        activate:  [icons, verbs].filter(Boolean).join(' ') || '—',
+        frequency: p.frequency || parsed.frequency || descClause(item, 'Frequency') || '—',
+        effect:    effect.length > 160 ? effect.slice(0, 157).trimEnd() + '…' : (effect || '—'),
+        stowed:    txt(item, 'carried', '0') === '0',
+      });
+    }
+  }
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+  return rows;
+}
+
+// A consumable's benefit is usually one sentence of flavour text away: "Upon
+// drinking it, you gain the effects of a 2nd-rank invisibility spell." Prefer a
+// labelled Effect clause, then the first sentence that actually promises the
+// reader something, then simply the first sentence.
+const CONSUMABLE_BENEFIT_RE =
+  /\b(?:you (?:gain|ignore|become|are|can|regain|get)|upon drinking|after you drink|when you activate|this scroll)\b/i;
+
+function consumableSummary(item) {
+  const clause = descClause(item, 'Effect');
+  if (clause) return clause.length > 150 ? clause.slice(0, 147).trimEnd() + '…' : clause;
+  const sentences = descText(item).split(/(?<=[.!?])\s+/).filter(Boolean);
+  const pick = sentences.find(s => CONSUMABLE_BENEFIT_RE.test(s)) || sentences[0] || '';
+  return pick.length > 150 ? pick.slice(0, 147).trimEnd() + '…' : pick;
+}
+
+function consumableDuration(item) {
+  const t = descText(item);
+  return (t.match(/\bduration is ([^.]+)/i)?.[1]
+       ?? t.match(/\bfor (\d+\s+(?:round|minute|hour|day)s?)\b/i)?.[1]
+       ?? '').trim();
+}
+
+function parseTemporaryEffects(char) {
   const consumables  = [];
+  const usedItemIds  = new Set();   // inventory rows now shown on the Buffs tab instead of Gear
   const wand_norms   = new Set();   // normalised lower-case spell names
   const wand_pending = [];          // [{norm, spellDisp, itemLevel, nameRank}]
 
@@ -1896,11 +2078,11 @@ function parseTemporaryEffects(char) {
     if (itype.includes('wand') || isubtype.includes('wand')) {
       const m = WAND_NAME_RE.exec(iname);
       if (m) {
-        const nameRank  = m[1] ? parseInt(m[1], 10) : 0;
-        const spellDisp = m[2].trim();
+        const nameRank  = parseInt(m[1] || m[2], 10) || 0;
+        const spellDisp = m[3].replace(WAND_SPELL_TRAIL_RE, '').trim();
         const norm = spellDisp.replace(/^\([A-Z]\)\s*/, '').replace(/\*+$/, '').trim().toLowerCase();
         wand_norms.add(norm);
-        wand_pending.push({ norm, spellDisp, itemLevel: num(item, 'level'), nameRank });
+        wand_pending.push({ norm, spellDisp, itemLevel: num(item, 'level'), nameRank, id: item.tagName });
       }
       continue;
     }
@@ -1934,13 +2116,19 @@ function parseTemporaryEffects(char) {
         }
       }
     }
+    // Most consumables carry no <actions> at all — a potion's whole rules text is
+    // prose — so falling back to the description is the difference between listing
+    // three of Tajam's and listing thirteen. Ammunition is the one consumable
+    // subtype that isn't a buff, and stays out.
     const effectsStr = effectParts.join(' | ');
-    if (!isStatBuff(effectsStr)) continue;
+    const isAmmo = isubtype.includes('ammunition') || itype.includes('ammunition');
+    if (!isStatBuff(effectsStr) && (isAmmo || !consumableSummary(item))) continue;
+    usedItemIds.add(item.tagName);
     consumables.push({
       name:     count > 1 ? `${name} ×${count}` : name,
       level, subtype,
-      effects:  effectsStr,
-      duration: duration || '—',
+      effects:  isStatBuff(effectsStr) ? effectsStr : consumableSummary(item),
+      duration: duration || consumableDuration(item) || '—',
     });
   }
 
@@ -1992,10 +2180,13 @@ function parseTemporaryEffects(char) {
   // Add wand items that have a buff effect. The Item column shows the
   // spell name; rank + "wand" in the Type column identify the item
   // (full item name still appears in the Inventory section).
-  for (const { norm, spellDisp, itemLevel, nameRank } of wand_pending) {
+  for (const { norm, spellDisp, itemLevel, nameRank, id } of wand_pending) {
     if (wandSpellData[norm]) {
       const { effects, duration, ssRank } = wandSpellData[norm];
       const rank = nameRank || ssRank;
+      // A wand whose spell can't be found in the spellsets gets no row here, so it
+      // stays in Gear rather than disappearing from the sheet entirely.
+      usedItemIds.add(id);
       consumables.push({
         name:    spellDisp,
         level:   itemLevel,
@@ -2070,7 +2261,7 @@ function parseTemporaryEffects(char) {
     .filter(([, spells]) => spells.length)
     .sort((a, b) => a[0].localeCompare(b[0]));
 
-  return { consumables, buffSpells };
+  return { consumables, buffSpells, usedItemIds };
 }
 
 // ── Automation string parser ──────────────────────────────────────────────────
@@ -2446,10 +2637,14 @@ function checkMissingAutomation(inventory) {
 // An activity's mechanics live in its <actions> node: the roll it makes and the
 // effects it applies per success tier. Fantasy Grounds' library ships the generic
 // actions already wired — Demoralize rolls Intimidation vs Will and applies
-// Frightened — but an activity created from a feat, class feature or item usually
-// arrives bare, so clicking it rolls nothing and applies nothing. Only those three
-// categories are checked; the basic encounter and exploration actions are mostly
-// narrative and would drown the report.
+// Frightened — but a feat/class-feature/item activity is frequently bare even in
+// FG's own library, not just when hand-added: manual-trigger reactions (Reactive
+// Strike says to roll a normal Strike; Cat's Luck is a manual reroll) legitimately
+// carry no <actions> at all. So an empty node here isn't proof of a missing
+// automation, only a candidate worth a look — hence the low-confidence 💡, and
+// why a text-mined hint (a bonus/penalty or condition keyword) is called out
+// separately. Only those three categories are checked; the basic encounter and
+// exploration actions are mostly narrative and would drown the report.
 const AUTOMATABLE_ACT_CATEGORIES = ['Feat Activities', 'Class Activities', 'Item Activities'];
 const ACT_CONDITION_RE = /\b(frightened|clumsy|stupefied|drained|enfeebled|sickened|slowed|quickened|prone|grabbed|restrained|off-guard|flat-footed|dazzled|blinded|deafened|fleeing|paralyzed|stunned|unconscious|persistent damage|temporary hit points)\b/i;
 const ACT_BONUS_RE = /[+-]\d+\s+(?:\w+\s+)?(?:status|circumstance|item)\s+(?:bonus|penalty)/i;
@@ -2505,6 +2700,28 @@ function checkPerceptionEffectKey(char) {
   return issues;
 }
 
+// ── Entry names carrying export residue ──────────────────────────────────────
+// A name holding a literal "\n" (backslash-n, two characters, not a line break) or
+// a spliced-in file name is left over from a bad export or a hand edit. The parsers
+// strip that residue so it can't skew a spells-known count or stop a "(MA)" tag
+// matching, which means nothing else on the page would ever mention it again —
+// so it gets said here once, with the spelling to type back into Fantasy Grounds.
+function checkNameArtifacts(char) {
+  const issues = [], seen = new Set();
+  for (const el of char.querySelectorAll('name')) {
+    const raw = (el.textContent || '').trim();
+    if (!/\\n|[\w-]+\.xml/i.test(raw) || seen.has(raw)) continue;
+    seen.add(raw);
+    const clean = raw.replace(/\\n/g, ' ').replace(/[\w-]+\.xml/gi, ' ').replace(/\s+/g, ' ').trim();
+    issues.push(
+      `  ⚠ An entry is stored as \`${raw}\` — the \`${/\\n/.test(raw) ? '\\n' : '.xml'}\` is export residue, ` +
+      `not part of the name. It's ignored everywhere in this report, but Fantasy Grounds still shows it; ` +
+      `rename the entry to **${clean || '(the real name)'}** to clear it.`
+    );
+  }
+  return issues;
+}
+
 // ── Apex items (ability boost) ────────────────────────────────────────────────
 // An invested apex item raises one ability modifier by 1, or to +4 if that's
 // higher. The PFRPG2 ruleset has no ability-score automation — its [ABILITY …]
@@ -2516,9 +2733,15 @@ function checkPerceptionEffectKey(char) {
 function checkApexAbility(abilities, inventory) {
   const mod = score => Math.floor((score - 10) / 2);
   const apexAbilityOf = item => {
-    const m = item.desc.match(
-      /increases? (?:your |the |its )?(strength|dexterity|constitution|intelligence|wisdom|charisma)\s+modifier/i);
-    return m ? m[1].toLowerCase() : null;
+    // Paizo's apex boilerplate reads "increase your X modifier by 1" (Crown of
+    // Intellect and, so far, every other apex item in this app's test data), but
+    // also match the reversed order ("your X modifier increases by 1") defensively
+    // — same sentence, no extra false-match risk since both sides still require
+    // "<ability> modifier" adjacent.
+    const ABIL = 'strength|dexterity|constitution|intelligence|wisdom|charisma';
+    const m = item.desc.match(new RegExp(
+      `(?:increases? (?:your |the |its )?(${ABIL})\\s+modifier|(${ABIL})\\s+modifier\\s+increases?)`, 'i'));
+    return m ? (m[1] || m[2]).toLowerCase() : null;
   };
 
   const apex     = inventory.filter(i => /\bapex\b/i.test(i.traits) || /\bapex\b/i.test(i.subtype));
@@ -3021,6 +3244,7 @@ function runConsistencyChecks(char, skills, effects, abilities, inventory, spell
     ['Apex item ability boost (no FG automation — manual entry only)',  checkApexAbility(abilities, inventory)],
     ['Activities with no actions attached',                             checkActivityAutomation(parseActivities(char))],
     ['Perception effects keyed as SKILL (inert)',                       checkPerceptionEffectKey(char)],
+    ['Entry names carrying export residue',                            checkNameArtifacts(char)],
     ['Signature spells (spontaneous casters)',                         checkSignatureSpells(char, spellsets)],
     ['Spells known per rank (spontaneous repertoires)',                checkRepertoireSize(spellsets)],
     ['Spell DC key attribute (per class/archetype)',                   checkSpellDcAttribute(char, abilities)],
@@ -3097,7 +3321,7 @@ function render(char) {
   const coins    = parseCoins(char);
   const specAbs  = parseSpecialAbilities(char);
   const profs    = parseProficiencies(char);
-  const { consumables, buffSpells } = parseTemporaryEffects(char);
+  const { consumables, buffSpells, usedItemIds } = parseTemporaryEffects(char);
 
   const out = [];
 
@@ -3436,8 +3660,13 @@ function render(char) {
   // location: free-text note set by the player, used to name the container an item lives in
   out.push('## Equipment', '');
 
-  const worn        = inventory.filter(i => i.carried_raw === '2');
-  const directCarry = inventory.filter(i => i.carried_raw === '1' && !i.location);
+  // Consumables and wands are listed on the Buffs & Consumables tab with what they
+  // actually do, so they're dropped here rather than appearing twice. Only rows that
+  // really made it onto that tab are removed — a wand whose spell couldn't be
+  // resolved is still listed below, so nothing silently vanishes from the inventory.
+  const gearItems   = inventory.filter(i => !usedItemIds.has(i.id));
+  const worn        = gearItems.filter(i => i.carried_raw === '2');
+  const directCarry = gearItems.filter(i => i.carried_raw === '1' && !i.location);
 
   // ── Invested item count ─────────────────────────────────────────────────────
   const hasIncredibleInvestiture = feats.some(f => f.name === 'Incredible Investiture');
@@ -3471,8 +3700,8 @@ function render(char) {
       ''
     );
   }
-  const inContainer = inventory.filter(i => i.location && i.carried_raw !== '2');
-  const notCarried  = inventory.filter(i => (i.carried_raw === '0' || i.carried_raw === '3') && !i.location);
+  const inContainer = gearItems.filter(i => i.location && i.carried_raw !== '2');
+  const notCarried  = gearItems.filter(i => (i.carried_raw === '0' || i.carried_raw === '3') && !i.location);
 
   // Container sub-groups, sorted case-insensitively
   const containerGroups = {};
@@ -3529,7 +3758,9 @@ function render(char) {
   const uiSkills = (hasUntrainedImprov && !uiEffect)
     ? skills.filter(s => s.proflevel === 'untrained' && s.misc > 0)
     : [];
-  const showUsefulEffects = consumables.length || buffSpells.length || uiSkills.length || uiEffect;
+  const activatables = parseActivatableItems(char);
+  const showUsefulEffects = consumables.length || buffSpells.length || uiSkills.length || uiEffect
+    || activatables.length;
 
   if (showUsefulEffects) {
     out.push('## Buffs & Consumables', '');
@@ -3566,8 +3797,22 @@ function render(char) {
       }
     }
 
+    if (activatables.length) {
+      out.push('### Activatable Items', '');
+      const anyStowed = activatables.some(a => a.stowed);
+      out.push(mdTable(
+        ['Item', 'Lvl', 'Activate', 'Frequency', 'Effect'],
+        activatables.map(a => [
+          a.name + (a.stowed ? ' *(stowed)*' : ''),
+          a.level, a.activate, a.frequency, a.effect,
+        ]),
+        ['l', 'r', 'l', 'l', 'l']
+      ), '');
+      if (anyStowed) out.push('*Stowed items aren\'t worn or held, so their activation isn\'t available.*', '');
+    }
+
     if (consumables.length) {
-      out.push('### Items', '');
+      out.push('### Consumables & Wands', '');
       out.push(mdTable(
         ['Item', 'Lvl', 'Type', 'Effect', 'Duration'],
         consumables.map(c => [c.name, c.level, c.subtype, prettifyEffects(c.effects), c.duration]),
