@@ -525,6 +525,11 @@
       vertical-align: middle;
     }
     .sp-badge.sig { border-color: #c9b8ff55; color: #c9b8ff; }
+    .sp-badge.shared { border-color: #5a8aa855; color: #9fd0ee; }
+    .sp-badge.shared.missing { border-color: #a86a5a88; color: #eeb09f; }
+    /* Outbound: solid underline, unlike the dotted glossary links that stay on the page. */
+    #rendered a.aon { color: #9fd0ee; text-decoration: underline; text-decoration-color: #5a8aa8; text-underline-offset: 2px; }
+    #rendered a.aon:hover { color: #c9e6ff; }
 
     /* ── Search bars ── */
     #sg-wrap { display: flex; align-items: center; }
@@ -1420,7 +1425,7 @@ function fgFieldText(parent, tag) {
 }
 
 function parseSpellsets(char) {
-  return children(char, 'spellset').map(sc => {
+  const sets = children(char, 'spellset').map(sc => {
     const levels = {};
     for (const lnode of children(sc, 'levels')) {
       const levelNum = txt(lnode, 'level') || lnode.tagName.replace(/\D/g, '');
@@ -1446,6 +1451,9 @@ function parseSpellsets(char) {
           // FG has no signature-spell field — set later by dedupeSignatureClones
           // when a contiguous heightened clone-run is detected.
           is_sig:     false,
+          // A leading space is a player marker — in Tevok's notes, a spellbook spell
+          // he also knows as a Sorcerer. txt() trims it, so read the raw text.
+          marked_shared: /^\s/.test(findPath(sp, 'name')?.textContent || ''),
           prepared:   txt(sp, 'prepared') === '1',
           has_prep:   findPath(sp, 'prepared') !== null,
           cast:       num(sp, 'cast'),
@@ -1486,6 +1494,21 @@ function parseSpellsets(char) {
       isPrepared: Object.values(levels).some(ls => ls.some(s => s.prepared)),
     };
   }).map(dedupeSignatureClones);
+
+  // Resolve each leading-space marker to the other list(s) that actually hold the
+  // spell, so the badge can say where — and admit it when none does.
+  const listsBySpell = {};
+  for (const ss of sets)
+    for (const spells of Object.values(ss.levels))
+      for (const sp of spells)
+        (listsBySpell[spellTags(sp.name).base.toLowerCase()] ??= new Set()).add(ss.label);
+  for (const ss of sets)
+    for (const spells of Object.values(ss.levels))
+      for (const sp of spells)
+        if (sp.marked_shared)
+          sp.also_in = [...(listsBySpell[spellTags(sp.name).base.toLowerCase()] || [])]
+            .filter(l => l !== ss.label);
+  return sets;
 }
 
 // FG has no signature-spell automation, so players maintain heightened copies
@@ -1496,17 +1519,45 @@ function parseSpellsets(char) {
 // learned at two ranks (Haste at 3 and 7) is non-contiguous and stays as
 // separate rows. Runs are merged into one row with a rank-range badge;
 // the grouping analysis is kept on ss.sigInfo for the Data Health check.
+// Bookkeeping players put on spell rows, possibly stacked: "*(S) (B) Force Barrage".
+// One reader for all of it, so the signature merge and the spells-known count agree.
+// Tevok's notes spell out the convention this follows:
+//   *(S)  signature spell taken at THIS rank — the row that spends the slot
+//   (S)   signature spell, a heightened copy
+//   (B)   bloodline spell
+// An older form puts the star last ("Fireball *"); it means the same thing.
+function spellTags(name) {
+  const s = String(name || '').trim();
+  const m = s.match(/^(\*?)\s*((?:\([A-Za-z0-9]{1,3}\)\s*)*)(.*)$/);
+  let rest = m[3];
+  const tags = [...m[2].matchAll(/\(([A-Za-z0-9]{1,3})\)/g)].map(x => x[1]);
+  const trailStar = /\*+\s*$/.test(rest);
+  rest = rest.replace(/\*+\s*$/, '').trim();
+  // A trailing tag only counts when it's all capitals — "Divine Lance (MA)" — so a
+  // parenthetical belonging to the spell's own name ("Ignition (Amp)") stays put.
+  const trail = rest.match(/\s\(([A-Z]{1,3})\)\s*$/)?.[1];
+  if (trail) { tags.push(trail); rest = rest.replace(/\s\([A-Z]{1,3}\)\s*$/, '').trim(); }
+  return { star: !!m[1] || trailStar, tags, base: rest };
+}
+
 function dedupeSignatureClones(ss) {
   // Strip trailing asterisks plus a short bookkeeping tag at either end — "(S) ",
   // "(B) ", "Fireball *", "Contingency (GME)". A trailing tag is only stripped when
   // it's all capitals, so a parenthetical belonging to the spell's own name
   // ("Ignition (Amp)", "Summon Animal Grad 5 (S1)") keeps the rows distinct. This
   // lets a chain that was tagged on some copies but not others still group.
-  const baseKey = n => n
-    .replace(/^\([A-Za-z0-9]{1,3}\)\s*/, '')
-    .replace(/\*+\s*$/, '')
-    .replace(/\s\([A-Z]{1,3}\)\s*$/, '')
-    .trim().toLowerCase();
+  const baseKey = n => spellTags(n).base.toLowerCase();
+  // Once a player marks where their signatures were taken, an unmarked one can't be
+  // placed at a rank at all — guessing would invent collisions and miscounts.
+  const usesStars = Object.values(ss.levels).flat().some(sp => spellTags(sp.name).star);
+  const slotRanksAll = Object.keys(ss.slots).map(Number).filter(n => n >= 1);
+  // Signature spells belong to spontaneous casters. In a prepared spellbook the same
+  // spell at several ranks is how you prepare it heightened, not a signature — merging
+  // those rows showed a false SIG badge (and would drop a marker on the later row).
+  if (ss.castertype !== 'spontaneous') {
+    ss.sigInfo = { maxRank: slotRanksAll.length ? Math.max(...slotRanksAll) : 0, groups: [] };
+    return ss;
+  }
   const slotRanks = Object.keys(ss.slots).map(Number).filter(n => n >= 1);
   const maxRank = slotRanks.length ? Math.max(...slotRanks) : 0;
 
@@ -1532,23 +1583,34 @@ function dedupeSignatureClones(ss) {
     const isRun = list.length > 1 && sameBase && contiguous &&
                   (uniq.length >= 3 || (uniq.length === 2 && uniq.at(-1) === maxRank));
 
+    // A signature spell can be heightened BELOW the rank it was taken at, so the
+    // lowest copy isn't necessarily where it spends a repertoire slot. A starred
+    // row says where it does; without one, the lowest copy is the best guess.
+    const starred = list.find(x => spellTags(x.sp.name).star);
+    const anchor = starred ?? list[0];
+    const unstar = n => n.replace(/^\s*\*\s*/, '').replace(/\*+\s*$/, '').trim();
+
     if (list.length > 1) {
       sigGroups.push({
         key,
-        name: list[0].sp.name.replace(/\*+\s*$/, '').trim(),
+        name: unstar(anchor.sp.name),
         baseRank: sameBase ? parseInt([...baseLevels][0], 10) : null,
+        anchorRank: parseInt(anchor.rank, 10),
+        unanchored: usesStars && !starred,
         buckets,
         isRun,
       });
     }
 
     if (isRun) {
-      const keep = list[0].sp;
-      keep.name = keep.name.replace(/\*+\s*$/, '').trim();
+      const keep = anchor.sp;
+      keep.name = unstar(keep.name);
       keep.rank_min = String(uniq[0]);
       keep.rank_max = String(uniq.at(-1));
       keep.is_sig = true;   // a detected clone-run heightens freely = signature
-      (newLevels[list[0].rank] ??= []).push(keep);
+      // Merging keeps one row; a marker on any of the others must survive it.
+      keep.marked_shared = list.some(x => x.sp.marked_shared);
+      (newLevels[anchor.rank] ??= []).push(keep);
     } else {
       for (const { rank, sp } of list) (newLevels[rank] ??= []).push(sp);
     }
@@ -2063,6 +2125,173 @@ function consumableDuration(item) {
   return (t.match(/\bduration is ([^.]+)/i)?.[1]
        ?? t.match(/\bfor (\d+\s+(?:round|minute|hour|day)s?)\b/i)?.[1]
        ?? '').trim();
+}
+
+// ── Spells cast from items ───────────────────────────────────────────────────
+// Fantasy Grounds gives an item no spell list and a spellset no link back to an
+// item, so the one thing every spell-casting item shares is its rules text. PF2e
+// activates all of them — staff, wand, scroll, spellheart, coda instrument, spell
+// catalyst — with the "Cast a Spell" activity. The few wondrous items that don't
+// (a scarf, a lantern, a spear) still say the item "casts a 1st-rank illusory
+// disguise". Either phrase marks a spell item; the spells come from a staff's
+// Spell List, the item's own name, or that same sentence.
+const CAST_A_SPELL_RE = /\bcast a spell\b/i;
+// PF2e traits that mean "this item casts spells", most specific first — a coda
+// instrument also carries `staff`, and should read as the instrument it is.
+const SPELL_ITEM_TRAITS = [
+  ['coda', 'Instrument'], ['wand', 'Wand'], ['scroll', 'Scroll'],
+  ['spellheart', 'Spellheart'], ['catalyst', 'Catalyst'], ['staff', 'Staff'],
+];
+const ORDINAL = '(\\d+)(?:st|nd|rd|th)';
+// "casts a 1st-rank illusory disguise spell", "casts 6th-level light", "cast a 5th-rank creation"
+const ITEM_CASTS_RE = new RegExp(
+  `\\bcasts?\\s+(?:an?\\s+)?${ORDINAL}-(?:rank|level)\\s+([a-z][a-z'’ -]*?)(?=\\s+spell\\b|\\s+on\\b|\\s+over\\b|\\s+with\\b|\\s*[.,;(]|$)`, 'gi');
+// Spellhearts: "You cast 2nd-rank biting words." — or, as often, no rank at all.
+const YOU_CAST_RE = new RegExp(
+  `\\byou cast\\s+(?:an?\\s+)?(?:${ORDINAL}-(?:rank|level)\\s+)?([a-z][a-z'’ -]*?)(?=\\s+spell\\b|\\s+on\\b|\\s*[.,;(]|$)`, 'gi');
+const SCROLL_NAME_RE = new RegExp(
+  `^(?:magic\\s+)?scroll\\s*(?:[-–]\\s*|\\s+of\\s+)(?:${ORDINAL}-(?:rank|level)\\s+)?(.+?)(?:\\s+(\\d+))?$`, 'i');
+// Items that grant a spell's effect without being "cast": the Crown of Intellect
+// ("you gain the effects of hypercognition"), potions ("the effects of a 2nd-rank
+// invisibility spell"), Snapleaf ("the benefits of feather fall and a 2nd-level
+// invisibility spell"). Captures the whole phrase; it's split on "and" below.
+const GAIN_EFFECTS_RE =
+  /\bgains?\s+the\s+(?:effects?|benefits?)\s+of\s+(.+?)(?=\s+for\s+\d|\s+until\b|\s+while\b|[.,;(]|$)/gi;
+const RANKED_SPELL_RE = new RegExp(
+  `^(?:an?\\s+|the\\s+)?(?:${'(\\d+)(?:st|nd|rd|th)'}-(?:rank|level)\\s+)?(.+?)(\\s+spell)?$`, 'i');
+const RANK_WORD = { cantrip: 0, cantrips: 0 };
+// Captures that are the rest of a sentence, not a spell: "a spell you cast that
+// has the curse trait", "you cast using your own spell slots".
+const CAST_PROSE_RE = /^(?:that|which|it|this|these|those|any|from|using|by|as|with|when|if|in|into|on|at)\b/i;
+
+function staffSpellList(item) {
+  // Staves and spell-bearing instruments list their spells by rank, but in at least
+  // three markups across the sample party:
+  //   <li><b>1st: </b>burning hands</li>             Staff of Fire
+  //   <b>1st </b>bane, ill omen\n <b>2nd </b>…         Accursed Staff (one paragraph)
+  //   <p><b>- 1st </b>heal</p>                         Staff of Healing
+  // What they share is a bold label that IS a rank, so key on that and read the
+  // names up to the next tag or the literal "\n" some exports carry.
+  const d = findPath(item, 'description');
+  if (!d) return [];
+  const html = d.innerHTML.replace(/\s+/g, ' ');
+  const out = [];
+  for (const m of html.matchAll(/<b>\s*-?\s*(cantrips?|\d+(?:st|nd|rd|th))\s*:?\s*<\/b>\s*([^<]*)/gi)) {
+    const label = m[1].toLowerCase();
+    const rank = label in RANK_WORD ? 0 : parseInt(label, 10);
+    const names = m[2].split('\\n')[0];
+    for (const name of names.split(',').map(s => s.trim().replace(/[.;]+$/, '')).filter(Boolean))
+      out.push({ rank, name });
+  }
+  return out;
+}
+
+function parseItemSpells(char) {
+  const out = [];
+  const clean = s => s.replace(/\s+/g, ' ').replace(/[\s,.;]+$/, '').trim();
+  const notASpell = new Set(['spell', 'spells', 'the spell', 'a spell', 'the listed spell']);
+
+
+  // FG's one real item→spell pointer: a <link class="spelldesc"> in the item's
+  // description or in an Item Activity pointing back at the item. Rare — the Crown
+  // of Intellect's Search Your Mind is the only one in the sample party — but exact.
+  const linkedSpells = {};
+  const hasItemActivity = new Set();
+  const spellLinks = node => node ? [...node.querySelectorAll('link')]
+    .filter(l => /spell/i.test(l.getAttribute('class') || ''))
+    .map(l => (l.textContent || '').replace(/^\s*spell\s*:\s*/i, '').trim()).filter(Boolean) : [];
+  for (const grp of children(char, 'activityset'))
+    for (const sec of children(grp, 'sections'))
+      for (const a of children(sec, 'activities')) {
+        const m = txt(a, 'shortcut_base/recordname').match(/inventorylist\.(id-\d+)/);
+        if (!m) continue;
+        hasItemActivity.add(m[1]);
+        (linkedSpells[m[1]] ??= []).push(...spellLinks(findPath(a, 'effectsbenefits')));
+      }
+
+  for (const item of children(char, 'inventorylist')) {
+    const name = txt(item, 'name');
+    if (!name) continue;
+    const activation = txt(item, 'activation');
+    const text = descText(item);
+    // Traits are the cleanest signal and name the kind of item as well; "Cast a
+    // Spell" catches anything whose traits were left off; "casts a 5th-rank
+    // creation" catches the odd wondrous item, like the Crafter's Eyepiece; a
+    // spell link or "gain the effects of <spell>" catches items that grant a
+    // spell's effect without casting it, like the Crown of Intellect.
+    const traitSet = new Set(txt(item, 'traits').toLowerCase().split(/[,\s]+/).filter(Boolean));
+    const spellTrait = SPELL_ITEM_TRAITS.find(([t]) => traitSet.has(t));
+    const isCaster = !!spellTrait || CAST_A_SPELL_RE.test(activation) || CAST_A_SPELL_RE.test(text);
+    // An effect on a miscellaneous item always comes with an action that triggers
+    // it. Text that merely describes a spell's effect therefore only counts when
+    // the item can actually be activated — or used up, for a consumable. Blazons of
+    // Shared Power "grant the benefits of fundamental runes" passively, with no
+    // activation, and aren't a spell item; the Cloak of Illusions' Draw Hood is.
+    const activatable = !!activation || descActivations(item).length > 0
+      || hasItemActivity.has(item.tagName) || isConsumableItem(item);
+    const castsFromText = activatable ? [...text.matchAll(ITEM_CASTS_RE)] : [];
+    const links = [...new Set([...spellLinks(findPath(item, 'description')), ...(linkedSpells[item.tagName] || [])])];
+
+    // "the benefits of feather fall and a 2nd-level invisibility spell" → both.
+    const gained = [];
+    if (activatable)
+      for (const m of text.matchAll(GAIN_EFFECTS_RE))
+        for (const part of m[1].split(/\s+and\s+/i)) {
+          const p = RANKED_SPELL_RE.exec(clean(part));
+          const spell = p && clean(p[2]).replace(/^the\s+/i, '');
+          if (spell && !notASpell.has(spell.toLowerCase()) && !CAST_PROSE_RE.test(spell))
+            gained.push({ rank: p[1] ? parseInt(p[1], 10) : null, name: spell });
+        }
+
+    if (!isCaster && !castsFromText.length && !links.length && !gained.length) continue;
+
+    const subtype = (txt(item, 'subtype') || txt(item, 'type')).toLowerCase();
+    const kind = spellTrait ? spellTrait[1]
+               : /wand/.test(subtype) ? 'Wand' : /scroll/.test(subtype) ? 'Scroll'
+               : /staff|staves/.test(subtype) ? 'Staff'
+               : /potion/.test(subtype) ? 'Potion' : /talisman/.test(subtype) ? 'Talisman' : 'Item';
+
+    // Most specific source first: a staff's own list, then the name, then the text.
+    let spells = staffSpellList(item);
+    if (!spells.length) {
+      const w = kind === 'Wand' ? WAND_NAME_RE.exec(name) : null;
+      const s = kind === 'Scroll' ? SCROLL_NAME_RE.exec(name) : null;
+      if (w) spells = [{ rank: parseInt(w[1] || w[2], 10) || null, name: w[3].replace(WAND_SPELL_TRAIL_RE, '').trim() }];
+      else if (s) spells = [{ rank: parseInt(s[1] || s[3], 10) || null, name: s[2].trim() }];
+    }
+    // A spell link is exact, so it outranks anything read out of prose.
+    if (!spells.length && links.length) spells = links.map(n => ({ rank: null, name: n }));
+    if (!spells.length) {
+      const hits = [...castsFromText, ...(isCaster ? text.matchAll(YOU_CAST_RE) : [])];
+      const seen = new Set();
+      for (const m of hits) {
+        const spell = clean(m[2]).replace(/^the\s+/i, '');
+        const key = spell.toLowerCase();
+        if (!spell || notASpell.has(key) || seen.has(key) || CAST_PROSE_RE.test(spell)) continue;
+        // "After you cast a sonic spell by activating the fork" names a TRAIT, not a
+        // spell. A real one either carries a rank or closes its sentence.
+        const after = text.slice(m.index + m[0].length);
+        if (!m[1] && /^\s+spell\b/i.test(after)) continue;
+        seen.add(key);
+        spells.push({ rank: m[1] ? parseInt(m[1], 10) : null, name: spell });
+      }
+    }
+
+    if (!spells.length && gained.length) spells = gained;
+
+    const frequency = kind === 'Scroll' || isConsumableItem(item) ? 'single use'
+      : descClause(item, 'Frequency') || splitActivation(activation).frequency || txt(item, 'frequency')
+        || (kind === 'Wand' ? 'once per day' : '');
+    out.push({
+      name, kind, spells,
+      level:     txt(item, 'level', '0'),
+      count:     num(item, 'count') || 1,
+      frequency: frequency.replace(/[;,.\s]+$/, ''),
+      stowed:    txt(item, 'carried', '0') === '0',
+    });
+  }
+  const KIND_ORDER = { Staff: 0, Instrument: 1, Wand: 2, Scroll: 3, Potion: 4, Talisman: 5, Spellheart: 6, Catalyst: 7, Item: 8 };
+  return out.sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.name.localeCompare(b.name));
 }
 
 function parseTemporaryEffects(char) {
@@ -2892,18 +3121,19 @@ function checkSignatureSpells(char, spellsets) {
         if (n > 1) issues.push(`  ⚠ **${ss.label}**: '${g.name}' is listed ${n}× at rank ${b} — duplicate entry.`);
     }
 
-    // 2. Gaps in a signature clone run (copies missing at castable ranks)
-    for (const g of runs) {
-      const have = new Set(g.buckets);
-      const from = g.baseRank ?? g.buckets[0];
-      const missing = [];
-      for (let r = from; r <= info.maxRank; r++) if (!have.has(r)) missing.push(r);
-      if (missing.length)
-        issues.push(
-          `  ⚠ **${ss.label}**: '${g.name}' (base rank ${from}) has heightened copies at ` +
-          `ranks ${g.buckets[0]}–${g.buckets.at(-1)} but is missing at rank${missing.length > 1 ? 's' : ''} ` +
-          `${missing.join(', ')} — a signature spell should have a copy at every castable rank.`
-        );
+    // 2. A signature spell can be cast at any rank from its own minimum upward, so
+    //    which heightened copies a player keeps is their choice — some take a spell
+    //    high and scale it down (Blazing Bolt, taken at 5, listed from 2), others
+    //    list only the top ranks. Missing copies therefore aren't reported. What
+    //    matters is WHERE the spell was taken, which only a starred row says: in a
+    //    list that marks them, an unmarked signature can't be placed, so ask.
+    for (const g of runs.filter(r => r.unanchored)) {
+      const span = g.buckets[0] === g.buckets.at(-1) ? `rank ${g.buckets[0]}` : `ranks ${g.buckets[0]}–${g.buckets.at(-1)}`;
+      issues.push(
+        `  ⚠ **${ss.label}**: '${g.name}' has signature copies at ${span} but no row marked \`*\` for ` +
+        `the rank it was taken at, so it can't be placed. Star that row, or remove the copies if it's ` +
+        `no longer a signature spell.`
+      );
     }
 
     // 3. Signature coverage — only for the character's OWN spontaneous class.
@@ -2922,7 +3152,8 @@ function checkSignatureSpells(char, spellsets) {
       } else {
         const byRank = {};
         for (const g of runs) {
-          const r = g.baseRank ?? g.buckets[0];
+          if (g.unanchored) continue;            // reported above; its rank is unknown
+          const r = g.anchorRank ?? g.baseRank ?? g.buckets[0];
           (byRank[r] ??= []).push(g.name);
         }
         const zero = [];
@@ -2975,10 +3206,8 @@ function checkRepertoireSize(spellsets) {
   // Both positions are read, and a non-S tag in either one wins: a row can carry a
   // signature marker AND a grant tag at once — "(S) Contingency (GME)" is a spell the
   // feat handed you that you also made signature, and it's still a granted spell.
-  const grantTag = name => [
-    name.match(/^\(([A-Z]{1,3})\)\s/)?.[1],
-    name.match(/\s\(([A-Z]{1,3})\)\s*$/)?.[1],
-  ].find(t => t && !t.startsWith('S')) ?? null;
+  const grantTag = name =>
+    spellTags(name).tags.find(t => /^[A-Z]{1,3}$/.test(t) && !t.startsWith('S')) ?? null;
 
   const issues = [];
   for (const ss of spellsets) {
@@ -3568,14 +3797,19 @@ function render(char) {
   out.push('', '---', '');
 
   // ── spell statistics ───────────────────────────────────────────────────────
-  if (spellsets.length) {
-    out.push('## Spell Statistics', '');
-    out.push(mdTable(
-      ['Spell Class', 'DC', 'Atk', 'CL'],
-      spellsets.map(ss => [ss.label, sign(ss.dc), sign(ss.atk), String(ss.cl)]),
-      ['l', 'r', 'r', 'r']
-    ));
-    out.push('', '---', '');
+  // A character who casts nothing can still carry a staff or a scroll, so the
+  // Spells section exists whenever either kind of spell does.
+  const itemSpells = parseItemSpells(char);
+  if (spellsets.length || itemSpells.length) {
+    if (spellsets.length) {
+      out.push('## Spell Statistics', '');
+      out.push(mdTable(
+        ['Spell Class', 'DC', 'Atk', 'CL'],
+        spellsets.map(ss => [ss.label, sign(ss.dc), sign(ss.atk), String(ss.cl)]),
+        ['l', 'r', 'r', 'r']
+      ));
+      out.push('', '---', '');
+    }
 
     // ── spells ───────────────────────────────────────────────────────────────
     out.push('## Spells', '');
@@ -3601,6 +3835,14 @@ function render(char) {
           const badges = [];
           if (sp.rank_max) badges.push(`<span class="sp-badge rank-range" title="Castable at ranks ${sp.rank_min}–${sp.rank_max}">R${sp.rank_min}–${sp.rank_max}</span>`);
           if (sp.is_sig) badges.push('<span class="sp-badge sig" title="Signature spell — heightens freely">SIG</span>');
+          if (sp.marked_shared) {
+            // Marked with a leading space in the export. Name the other list, or say
+            // plainly that none has it — the marker and the lists have drifted apart.
+            const other = sp.also_in?.[0];
+            badges.push(other
+              ? `<span class="sp-badge shared" title="Also in the ${escHtml(other)} list (marked with a leading space in the export)">↔ ${escHtml(other)}</span>`
+              : '<span class="sp-badge shared missing" title="Marked with a leading space as shared, but no other spell list on this character has it">↔ ?</span>');
+          }
           if (sp.max_cast > 0) badges.push(`<span class="sp-badge">${sp.cast}/${sp.max_cast}</span>`);
           const rangeCell = sp.area || sp.range || sp.targets || '—';
           const trTraits = (sp.traits || '').toLowerCase().replace(/,\s*/g, ',');
@@ -3625,6 +3867,41 @@ function render(char) {
         out.push(tbl);
       }
       out.push('');
+    }
+
+    // Last sub-section of Spells, so makeSpellSubTabs gives it a pill of its own
+    // beside the spellcasting classes.
+    if (itemSpells.length) {
+      out.push('### Magic Items', '');
+      const ord = r => r === 0 ? 'Cantrip' : r ? `Rank ${r}` : '';
+      // Fantasy Grounds only exports rules text for spells in the character's own
+      // spell lists, and the glossary links those by itself. An item's other spells
+      // exist in the export only as a name, so they point at Archives of Nethys —
+      // marked with ↗, since that link leaves the page. A source tag like "(SoM)"
+      // helps a reader but would only narrow AoN's search, so it's left off the query.
+      const localSpells = new Set();
+      for (const ss of spellsets)
+        for (const list of Object.values(ss.levels))
+          for (const sp of list) localSpells.add(spellTags(sp.name).base.toLowerCase());
+      const bareName = n => n.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      const spellRef = n => localSpells.has(bareName(n).toLowerCase()) ? n
+        : `<a class="aon" href="https://2e.aonprd.com/Search.aspx?q=${encodeURIComponent(bareName(n))}" ` +
+          `title="No rules text in this export — search Archives of Nethys">${escHtml(n)} ↗</a>`;
+      const spellCell = spells => {
+        if (!spells.length) return '*see item text*';
+        const byRank = new Map();
+        for (const s of spells) (byRank.get(s.rank) ?? byRank.set(s.rank, []).get(s.rank)).push(s.name);
+        return [...byRank].sort((a, b) => (a[0] ?? 99) - (b[0] ?? 99))
+          .map(([r, names]) => (ord(r) ? `${ord(r)}: ` : '') + names.map(spellRef).join(', ')).join(' · ');
+      };
+      out.push(mdTable(
+        ['Item', 'Type', 'Spells', 'Frequency'],
+        itemSpells.map(it => [
+          (it.count > 1 ? `${it.count}× ` : '') + it.name + (it.stowed ? ' *(stowed)*' : ''),
+          it.kind, spellCell(it.spells), it.frequency || '—',
+        ]),
+        ['l', 'l', 'l', 'l']
+      ), '');
     }
     out.push('---', '');
   }
@@ -4823,6 +5100,16 @@ function ensureGlossRe() {
   return GLOSS_RE;
 }
 
+// Archives of Nethys links would replace the sheet — and the loaded character —
+// if they opened in place. DOMPurify strips `target` from the rendered markup, so
+// it's set here, after sanitising, rather than written into the HTML.
+function openExternalLinksInNewTab() {
+  for (const a of document.querySelectorAll('#rendered a.aon')) {
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+  }
+}
+
 function linkifyGlossary() {
   const re = ensureGlossRe();
   if (!re) return;
@@ -5190,6 +5477,7 @@ function processXmlText(xmlText, fileName) {
       GLOSSARY = buildGlossary(char, parseSkills(char));
       GLOSS_RE = null;
       linkifyGlossary();
+      openExternalLinksInNewTab();
       makeCollapsible();
       linkifySkillsTable();
       makeTabs();
@@ -5399,6 +5687,7 @@ function rerender() {
   GLOSSARY = buildGlossary(currentChar, parseSkills(currentChar));
   GLOSS_RE = null;
   linkifyGlossary();
+  openExternalLinksInNewTab();
   makeCollapsible();
   linkifySkillsTable();
   makeTabs();
