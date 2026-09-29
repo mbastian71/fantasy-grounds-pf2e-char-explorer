@@ -2065,6 +2065,173 @@ function consumableDuration(item) {
        ?? '').trim();
 }
 
+// ── Spells cast from items ───────────────────────────────────────────────────
+// Fantasy Grounds gives an item no spell list and a spellset no link back to an
+// item, so the one thing every spell-casting item shares is its rules text. PF2e
+// activates all of them — staff, wand, scroll, spellheart, coda instrument, spell
+// catalyst — with the "Cast a Spell" activity. The few wondrous items that don't
+// (a scarf, a lantern, a spear) still say the item "casts a 1st-rank illusory
+// disguise". Either phrase marks a spell item; the spells come from a staff's
+// Spell List, the item's own name, or that same sentence.
+const CAST_A_SPELL_RE = /\bcast a spell\b/i;
+// PF2e traits that mean "this item casts spells", most specific first — a coda
+// instrument also carries `staff`, and should read as the instrument it is.
+const SPELL_ITEM_TRAITS = [
+  ['coda', 'Instrument'], ['wand', 'Wand'], ['scroll', 'Scroll'],
+  ['spellheart', 'Spellheart'], ['catalyst', 'Catalyst'], ['staff', 'Staff'],
+];
+const ORDINAL = '(\\d+)(?:st|nd|rd|th)';
+// "casts a 1st-rank illusory disguise spell", "casts 6th-level light", "cast a 5th-rank creation"
+const ITEM_CASTS_RE = new RegExp(
+  `\\bcasts?\\s+(?:an?\\s+)?${ORDINAL}-(?:rank|level)\\s+([a-z][a-z'’ -]*?)(?=\\s+spell\\b|\\s+on\\b|\\s+over\\b|\\s+with\\b|\\s*[.,;(]|$)`, 'gi');
+// Spellhearts: "You cast 2nd-rank biting words." — or, as often, no rank at all.
+const YOU_CAST_RE = new RegExp(
+  `\\byou cast\\s+(?:an?\\s+)?(?:${ORDINAL}-(?:rank|level)\\s+)?([a-z][a-z'’ -]*?)(?=\\s+spell\\b|\\s+on\\b|\\s*[.,;(]|$)`, 'gi');
+const SCROLL_NAME_RE = new RegExp(
+  `^(?:magic\\s+)?scroll\\s*(?:[-–]\\s*|\\s+of\\s+)(?:${ORDINAL}-(?:rank|level)\\s+)?(.+?)(?:\\s+(\\d+))?$`, 'i');
+// Items that grant a spell's effect without being "cast": the Crown of Intellect
+// ("you gain the effects of hypercognition"), potions ("the effects of a 2nd-rank
+// invisibility spell"), Snapleaf ("the benefits of feather fall and a 2nd-level
+// invisibility spell"). Captures the whole phrase; it's split on "and" below.
+const GAIN_EFFECTS_RE =
+  /\bgains?\s+the\s+(?:effects?|benefits?)\s+of\s+(.+?)(?=\s+for\s+\d|\s+until\b|\s+while\b|[.,;(]|$)/gi;
+const RANKED_SPELL_RE = new RegExp(
+  `^(?:an?\\s+|the\\s+)?(?:${'(\\d+)(?:st|nd|rd|th)'}-(?:rank|level)\\s+)?(.+?)(\\s+spell)?$`, 'i');
+const RANK_WORD = { cantrip: 0, cantrips: 0 };
+// Captures that are the rest of a sentence, not a spell: "a spell you cast that
+// has the curse trait", "you cast using your own spell slots".
+const CAST_PROSE_RE = /^(?:that|which|it|this|these|those|any|from|using|by|as|with|when|if|in|into|on|at)\b/i;
+
+function staffSpellList(item) {
+  // Staves and spell-bearing instruments list their spells by rank, but in at least
+  // three markups across the sample party:
+  //   <li><b>1st: </b>burning hands</li>             Staff of Fire
+  //   <b>1st </b>bane, ill omen\n <b>2nd </b>…         Accursed Staff (one paragraph)
+  //   <p><b>- 1st </b>heal</p>                         Staff of Healing
+  // What they share is a bold label that IS a rank, so key on that and read the
+  // names up to the next tag or the literal "\n" some exports carry.
+  const d = findPath(item, 'description');
+  if (!d) return [];
+  const html = d.innerHTML.replace(/\s+/g, ' ');
+  const out = [];
+  for (const m of html.matchAll(/<b>\s*-?\s*(cantrips?|\d+(?:st|nd|rd|th))\s*:?\s*<\/b>\s*([^<]*)/gi)) {
+    const label = m[1].toLowerCase();
+    const rank = label in RANK_WORD ? 0 : parseInt(label, 10);
+    const names = m[2].split('\\n')[0];
+    for (const name of names.split(',').map(s => s.trim().replace(/[.;]+$/, '')).filter(Boolean))
+      out.push({ rank, name });
+  }
+  return out;
+}
+
+function parseItemSpells(char) {
+  const out = [];
+  const clean = s => s.replace(/\s+/g, ' ').replace(/[\s,.;]+$/, '').trim();
+  const notASpell = new Set(['spell', 'spells', 'the spell', 'a spell', 'the listed spell']);
+
+
+  // FG's one real item→spell pointer: a <link class="spelldesc"> in the item's
+  // description or in an Item Activity pointing back at the item. Rare — the Crown
+  // of Intellect's Search Your Mind is the only one in the sample party — but exact.
+  const linkedSpells = {};
+  const hasItemActivity = new Set();
+  const spellLinks = node => node ? [...node.querySelectorAll('link')]
+    .filter(l => /spell/i.test(l.getAttribute('class') || ''))
+    .map(l => (l.textContent || '').replace(/^\s*spell\s*:\s*/i, '').trim()).filter(Boolean) : [];
+  for (const grp of children(char, 'activityset'))
+    for (const sec of children(grp, 'sections'))
+      for (const a of children(sec, 'activities')) {
+        const m = txt(a, 'shortcut_base/recordname').match(/inventorylist\.(id-\d+)/);
+        if (!m) continue;
+        hasItemActivity.add(m[1]);
+        (linkedSpells[m[1]] ??= []).push(...spellLinks(findPath(a, 'effectsbenefits')));
+      }
+
+  for (const item of children(char, 'inventorylist')) {
+    const name = txt(item, 'name');
+    if (!name) continue;
+    const activation = txt(item, 'activation');
+    const text = descText(item);
+    // Traits are the cleanest signal and name the kind of item as well; "Cast a
+    // Spell" catches anything whose traits were left off; "casts a 5th-rank
+    // creation" catches the odd wondrous item, like the Crafter's Eyepiece; a
+    // spell link or "gain the effects of <spell>" catches items that grant a
+    // spell's effect without casting it, like the Crown of Intellect.
+    const traitSet = new Set(txt(item, 'traits').toLowerCase().split(/[,\s]+/).filter(Boolean));
+    const spellTrait = SPELL_ITEM_TRAITS.find(([t]) => traitSet.has(t));
+    const isCaster = !!spellTrait || CAST_A_SPELL_RE.test(activation) || CAST_A_SPELL_RE.test(text);
+    // An effect on a miscellaneous item always comes with an action that triggers
+    // it. Text that merely describes a spell's effect therefore only counts when
+    // the item can actually be activated — or used up, for a consumable. Blazons of
+    // Shared Power "grant the benefits of fundamental runes" passively, with no
+    // activation, and aren't a spell item; the Cloak of Illusions' Draw Hood is.
+    const activatable = !!activation || descActivations(item).length > 0
+      || hasItemActivity.has(item.tagName) || isConsumableItem(item);
+    const castsFromText = activatable ? [...text.matchAll(ITEM_CASTS_RE)] : [];
+    const links = [...new Set([...spellLinks(findPath(item, 'description')), ...(linkedSpells[item.tagName] || [])])];
+
+    // "the benefits of feather fall and a 2nd-level invisibility spell" → both.
+    const gained = [];
+    if (activatable)
+      for (const m of text.matchAll(GAIN_EFFECTS_RE))
+        for (const part of m[1].split(/\s+and\s+/i)) {
+          const p = RANKED_SPELL_RE.exec(clean(part));
+          const spell = p && clean(p[2]).replace(/^the\s+/i, '');
+          if (spell && !notASpell.has(spell.toLowerCase()) && !CAST_PROSE_RE.test(spell))
+            gained.push({ rank: p[1] ? parseInt(p[1], 10) : null, name: spell });
+        }
+
+    if (!isCaster && !castsFromText.length && !links.length && !gained.length) continue;
+
+    const subtype = (txt(item, 'subtype') || txt(item, 'type')).toLowerCase();
+    const kind = spellTrait ? spellTrait[1]
+               : /wand/.test(subtype) ? 'Wand' : /scroll/.test(subtype) ? 'Scroll'
+               : /staff|staves/.test(subtype) ? 'Staff'
+               : /potion/.test(subtype) ? 'Potion' : /talisman/.test(subtype) ? 'Talisman' : 'Item';
+
+    // Most specific source first: a staff's own list, then the name, then the text.
+    let spells = staffSpellList(item);
+    if (!spells.length) {
+      const w = kind === 'Wand' ? WAND_NAME_RE.exec(name) : null;
+      const s = kind === 'Scroll' ? SCROLL_NAME_RE.exec(name) : null;
+      if (w) spells = [{ rank: parseInt(w[1] || w[2], 10) || null, name: w[3].replace(WAND_SPELL_TRAIL_RE, '').trim() }];
+      else if (s) spells = [{ rank: parseInt(s[1] || s[3], 10) || null, name: s[2].trim() }];
+    }
+    // A spell link is exact, so it outranks anything read out of prose.
+    if (!spells.length && links.length) spells = links.map(n => ({ rank: null, name: n }));
+    if (!spells.length) {
+      const hits = [...castsFromText, ...(isCaster ? text.matchAll(YOU_CAST_RE) : [])];
+      const seen = new Set();
+      for (const m of hits) {
+        const spell = clean(m[2]).replace(/^the\s+/i, '');
+        const key = spell.toLowerCase();
+        if (!spell || notASpell.has(key) || seen.has(key) || CAST_PROSE_RE.test(spell)) continue;
+        // "After you cast a sonic spell by activating the fork" names a TRAIT, not a
+        // spell. A real one either carries a rank or closes its sentence.
+        const after = text.slice(m.index + m[0].length);
+        if (!m[1] && /^\s+spell\b/i.test(after)) continue;
+        seen.add(key);
+        spells.push({ rank: m[1] ? parseInt(m[1], 10) : null, name: spell });
+      }
+    }
+
+    if (!spells.length && gained.length) spells = gained;
+
+    const frequency = kind === 'Scroll' || isConsumableItem(item) ? 'single use'
+      : descClause(item, 'Frequency') || splitActivation(activation).frequency || txt(item, 'frequency')
+        || (kind === 'Wand' ? 'once per day' : '');
+    out.push({
+      name, kind, spells,
+      level:     txt(item, 'level', '0'),
+      count:     num(item, 'count') || 1,
+      frequency: frequency.replace(/[;,.\s]+$/, ''),
+      stowed:    txt(item, 'carried', '0') === '0',
+    });
+  }
+  const KIND_ORDER = { Staff: 0, Instrument: 1, Wand: 2, Scroll: 3, Potion: 4, Talisman: 5, Spellheart: 6, Catalyst: 7, Item: 8 };
+  return out.sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.name.localeCompare(b.name));
+}
+
 function parseTemporaryEffects(char) {
   const consumables  = [];
   const wand_norms   = new Set();   // normalised lower-case spell names
@@ -3568,14 +3735,19 @@ function render(char) {
   out.push('', '---', '');
 
   // ── spell statistics ───────────────────────────────────────────────────────
-  if (spellsets.length) {
-    out.push('## Spell Statistics', '');
-    out.push(mdTable(
-      ['Spell Class', 'DC', 'Atk', 'CL'],
-      spellsets.map(ss => [ss.label, sign(ss.dc), sign(ss.atk), String(ss.cl)]),
-      ['l', 'r', 'r', 'r']
-    ));
-    out.push('', '---', '');
+  // A character who casts nothing can still carry a staff or a scroll, so the
+  // Spells section exists whenever either kind of spell does.
+  const itemSpells = parseItemSpells(char);
+  if (spellsets.length || itemSpells.length) {
+    if (spellsets.length) {
+      out.push('## Spell Statistics', '');
+      out.push(mdTable(
+        ['Spell Class', 'DC', 'Atk', 'CL'],
+        spellsets.map(ss => [ss.label, sign(ss.dc), sign(ss.atk), String(ss.cl)]),
+        ['l', 'r', 'r', 'r']
+      ));
+      out.push('', '---', '');
+    }
 
     // ── spells ───────────────────────────────────────────────────────────────
     out.push('## Spells', '');
@@ -3625,6 +3797,28 @@ function render(char) {
         out.push(tbl);
       }
       out.push('');
+    }
+
+    // Last sub-section of Spells, so makeSpellSubTabs gives it a pill of its own
+    // beside the spellcasting classes.
+    if (itemSpells.length) {
+      out.push('### Magic Items', '');
+      const ord = r => r === 0 ? 'Cantrip' : r ? `Rank ${r}` : '';
+      const spellCell = spells => {
+        if (!spells.length) return '*see item text*';
+        const byRank = new Map();
+        for (const s of spells) (byRank.get(s.rank) ?? byRank.set(s.rank, []).get(s.rank)).push(s.name);
+        return [...byRank].sort((a, b) => (a[0] ?? 99) - (b[0] ?? 99))
+          .map(([r, names]) => (ord(r) ? `${ord(r)}: ` : '') + names.join(', ')).join(' · ');
+      };
+      out.push(mdTable(
+        ['Item', 'Type', 'Spells', 'Frequency'],
+        itemSpells.map(it => [
+          (it.count > 1 ? `${it.count}× ` : '') + it.name + (it.stowed ? ' *(stowed)*' : ''),
+          it.kind, spellCell(it.spells), it.frequency || '—',
+        ]),
+        ['l', 'l', 'l', 'l']
+      ), '');
     }
     out.push('---', '');
   }
