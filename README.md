@@ -128,6 +128,24 @@ traditions, e.g. `(1st) Halcyon Speaker`) and spells that aren't on your
 repertoire's tradition are recognised without a tag — the latter is flagged so you
 can decide.
 
+**Sorcerers: keep a legend in your Notes.** Only Sorcerers need this — signature
+and bloodline tags are theirs. Put a short block in the character's Notes in
+Fantasy Grounds so your GM and group can read the sheet the way you do:
+
+```
+<codes>
+"^*(S)" Signature Spell taken on this level
+"^(S)" Signature Spell
+"^(B)" Bloodline Spell
+"^ ";Wiz Spellbook from Sorcerer list
+</codes>
+```
+
+The explorer doesn't read the block — it follows these conventions on its own — so
+it's for people, not the tool. The last line is the one marker not listed above: a
+**leading space** on a spellbook spell you also know as a Sorcerer, which the
+Spells tab shows as a **↔ Sorcerer** badge.
+
 ## Caveats — please read
 
 - **This is purely vibe-coded.** It was thrown together for personal use, without
