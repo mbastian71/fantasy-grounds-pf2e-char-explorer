@@ -525,6 +525,11 @@
       vertical-align: middle;
     }
     .sp-badge.sig { border-color: #c9b8ff55; color: #c9b8ff; }
+    .sp-badge.sig.taken { border-color: #c9b8ffaa; color: #ece6ff; background: rgba(185,160,255,0.14); }
+    .sp-badge.sig.copy { border-color: #c9b8ff33; color: #9d92c4; }
+    .sp-badge.sig.unplaced { border-color: #a86a5a88; color: #eeb09f; }
+    /* A signature carried in from another rank: present, but visibly not new here. */
+    #rendered tr.sp-sigcopy td { opacity: 0.58; }
     .sp-badge.shared { border-color: #5a8aa855; color: #9fd0ee; }
     .sp-badge.shared.missing { border-color: #a86a5a88; color: #eeb09f; }
     /* Outbound: solid underline, unlike the dotted glossary links that stay on the page. */
@@ -1556,6 +1561,7 @@ function dedupeSignatureClones(ss) {
   // those rows showed a false SIG badge (and would drop a marker on the later row).
   if (ss.castertype !== 'spontaneous') {
     ss.sigInfo = { maxRank: slotRanksAll.length ? Math.max(...slotRanksAll) : 0, groups: [] };
+    ss.displayLevels = ss.levels;
     return ss;
   }
   const slotRanks = Object.keys(ss.slots).map(Number).filter(n => n >= 1);
@@ -1568,6 +1574,11 @@ function dedupeSignatureClones(ss) {
 
   const sigGroups = [];
   const newLevels = {};
+  // Two views of the same rows. The checks want each signature ONCE, at the rank it
+  // spends a repertoire slot. A reader wants every copy at its own rank — at rank 6
+  // you want to see that Force Barrage is castable there — but marked, so what's new
+  // at this rank stands apart from signatures carried in from another one.
+  const displayLevels = {};
   for (const [key, list] of Object.entries(groups)) {
     list.sort((a, b) => (parseInt(a.rank) || 0) - (parseInt(b.rank) || 0));
     const buckets    = list.map(x => parseInt(x.rank)).filter(n => !isNaN(n));
@@ -1611,12 +1622,30 @@ function dedupeSignatureClones(ss) {
       // Merging keeps one row; a marker on any of the others must survive it.
       keep.marked_shared = list.some(x => x.sp.marked_shared);
       (newLevels[anchor.rank] ??= []).push(keep);
+
+      // Roles for display. With a star, the starred row is where it was taken and
+      // every other row is a copy of it. In a list that stars its signatures, one
+      // without a star can't be placed. In a list that uses no stars at all, the
+      // lowest copy stands in, without claiming to be where it was taken.
+      const placed = !!starred || !usesStars;
+      keep.sig_role = starred ? 'taken' : placed ? 'sig' : 'unplaced';
+      for (const x of list) {
+        if (x === anchor) { (displayLevels[x.rank] ??= []).push(keep); continue; }
+        x.sp.name = unstar(x.sp.name);
+        x.sp.sig_role = placed ? 'copy' : 'unplaced';
+        x.sp.sig_from = starred ? parseInt(anchor.rank, 10) : null;
+        (displayLevels[x.rank] ??= []).push(x.sp);
+      }
     } else {
-      for (const { rank, sp } of list) (newLevels[rank] ??= []).push(sp);
+      for (const { rank, sp } of list) {
+        (newLevels[rank] ??= []).push(sp);
+        (displayLevels[rank] ??= []).push(sp);
+      }
     }
   }
   ss.sigInfo = { maxRank, groups: sigGroups };
   ss.levels = newLevels;
+  ss.displayLevels = displayLevels;
   return ss;
 }
 
@@ -3816,13 +3845,17 @@ function render(char) {
     const byName = (a, b) => a.name.localeCompare(b.name);
     for (const ss of spellsets) {
       out.push(`### ${ss.label}  —  DC ${ss.dc} / Atk ${sign(ss.atk)}`);
-      const sortedLevels = Object.keys(ss.levels).sort((a, b) =>
+      // Every copy at its own rank (see dedupeSignatureClones), with signature copies
+      // sorted after the spells that are new at that rank.
+      const shown = ss.displayLevels ?? ss.levels;
+      const sortedLevels = Object.keys(shown).sort((a, b) =>
         (/^\d+$/.test(a) ? parseInt(a) : 99) - (/^\d+$/.test(b) ? parseInt(b) : 99)
       );
+      const newFirst = (a, b) => (a.sig_role === 'copy') - (b.sig_role === 'copy') || byName(a, b);
       for (const lk of sortedLevels) {
-        const spells   = ss.levels[lk];
-        const cantrips = spells.filter(sp => sp.is_cantrip).sort(byName);
-        const normals  = spells.filter(sp => !sp.is_cantrip).sort(byName);
+        const spells   = shown[lk];
+        const cantrips = spells.filter(sp => sp.is_cantrip).sort(newFirst);
+        const normals  = spells.filter(sp => !sp.is_cantrip).sort(newFirst);
         const rankLabel = (cantrips.length && !normals.length) ? 'Cantrips' : `Rank ${lk}`;
         const slotCount = ss.slots[String(lk)];
         const slotStr   = slotCount ? `<span class="sp-slots">· ${slotCount} slot${slotCount > 1 ? 's' : ''}</span>` : '';
@@ -3834,7 +3867,16 @@ function render(char) {
         for (const sp of [...cantrips, ...normals]) {
           const badges = [];
           if (sp.rank_max) badges.push(`<span class="sp-badge rank-range" title="Castable at ranks ${sp.rank_min}–${sp.rank_max}">R${sp.rank_min}–${sp.rank_max}</span>`);
-          if (sp.is_sig) badges.push('<span class="sp-badge sig" title="Signature spell — heightens freely">SIG</span>');
+          if (sp.sig_role === 'taken')
+            badges.push('<span class="sp-badge sig taken" title="Signature spell taken at this rank — this row spends the repertoire slot">★ SIG</span>');
+          else if (sp.sig_role === 'copy')
+            badges.push(sp.sig_from
+              ? `<span class="sp-badge sig copy" title="Signature spell taken at rank ${sp.sig_from}, cast at this rank — it doesn't use a repertoire slot here">SIG ← R${sp.sig_from}</span>`
+              : '<span class="sp-badge sig copy" title="Signature spell, listed again at this rank">SIG copy</span>');
+          else if (sp.sig_role === 'unplaced')
+            badges.push('<span class="sp-badge sig unplaced" title="Signature spell with no row marked * for the rank it was taken at — see Data Health">SIG ?</span>');
+          else if (sp.is_sig)
+            badges.push('<span class="sp-badge sig" title="Signature spell — heightens freely">SIG</span>');
           if (sp.marked_shared) {
             // Marked with a leading space in the export. Name the other list, or say
             // plainly that none has it — the marker and the lists have drifted apart.
@@ -3848,7 +3890,8 @@ function render(char) {
           const trTraits = (sp.traits || '').toLowerCase().replace(/,\s*/g, ',');
           const saveInfo = normSave(sp.save);
           const unprep   = ss.isPrepared && sp.has_prep && !sp.prepared && !sp.is_cantrip;
-          tbl += `<tr${unprep ? ' class="sp-unprep"' : ''} data-name="${escHtml(sp.name.toLowerCase())}" ` +
+          const rowCls = [unprep && 'sp-unprep', sp.sig_role === 'copy' && 'sp-sigcopy'].filter(Boolean).join(' ');
+          tbl += `<tr${rowCls ? ` class="${rowCls}"` : ''} data-name="${escHtml(sp.name.toLowerCase())}" ` +
                  `data-traits="${escHtml(trTraits)}" ` +
                  `data-save="${escHtml(saveInfo.norm)}" ` +
                  `data-act="${escHtml(sp.act.key)}" ` +
