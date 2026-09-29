@@ -110,6 +110,13 @@ the very end of the name:
 - **Cast from another list using these slots** — `(HC) Heal`.
 - Tags starting with **S** are signature markers and still count as a spell known —
   `(S) Fireball`, `Ferrous Form (S8)`.
+- A **leading `*`** marks the rank a signature spell was *taken* at — the row that
+  spends the repertoire slot: `*(S) Blazing Bolt` at rank 5, with `(S)` copies at
+  the other ranks. Worth adding, since a signature can be heightened *below* that
+  rank and the lowest copy is otherwise only a guess. Tags stack:
+  `*(S) (B) Force Barrage`. Copies are optional — keep them only at the ranks you
+  want listed. Once a list uses stars, a signature without one is reported, since
+  there's no longer a safe guess for where it was taken.
 
 The capital letters and the position matter: they're what keeps a parenthetical
 that's part of the spell's own name — `Ignition (Amp)`, `Dragon Form (Red)` — from
